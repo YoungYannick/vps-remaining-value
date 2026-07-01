@@ -5,4 +5,4 @@ RUN npm install --production
 COPY public/ ./public/
 COPY server.js ./
 EXPOSE 45867
-CMD ["npm", "run", "run"]
+CMD ["npm", "run", "start"]
