@@ -22,11 +22,11 @@ npm run start
 
 ```bash
 docker build -t vps-remaining-value:latest .
-docker run -d -p 45867:45867 --restart always --name vps-remaining-value vps-remaining-value:latest
+docker run -d -p 45867:45867 -e SECRET_KEY="YourCustomSecretKeyHere" -e V6_API_KEY="YourExchangeRateV6KeyHere" --restart always --name vps-remaining-value vps-remaining-value:latest
 ```
 
 ```bash
-docker run -d -p 45867:45867 --restart always --name vps-remaining-value ghcr.io/youngyannick/vps-remaining-value:latest
+docker run -d -p 45867:45867 -e SECRET_KEY="YourCustomSecretKeyHere" -e V6_API_KEY="YourExchangeRateV6KeyHere" --restart always --name vps-remaining-value ghcr.io/youngyannick/vps-remaining-value:latest
 ```
 
 ---
