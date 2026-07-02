@@ -338,6 +338,8 @@ const d = new Date();
 const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
 const bjTime = new Date(utc + (8 * 60 * 60 * 1000));
 els.td.value = bjTime.toISOString().split('T')[0];
+const tomorrow = new Date(bjTime.getTime() + (24 * 60 * 60 * 1000));
+els.ed.value = tomorrow.toISOString().split('T')[0];
 const img = document.getElementById('preview');
 const statusMsg = document.getElementById('status-msg');
 const rateDisplay = document.getElementById('rate-display');
@@ -481,11 +483,12 @@ document.getElementById('reset-btn').addEventListener('click', (e) => {
     els.ra.value = '';
     els.rc.value = 'USD';
     els.pd.value = '365';
-    els.ed.value = '';
     const d = new Date();
     const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
     const bjTime = new Date(utc + (8 * 60 * 60 * 1000));
     els.td.value = bjTime.toISOString().split('T')[0];
+    const tomorrow = new Date(bjTime.getTime() + (24 * 60 * 60 * 1000));
+    els.ed.value = tomorrow.toISOString().split('T')[0];
     els.ta.value = '';
     els.tc.value = 'CNY';
     window.history.replaceState({}, '', window.location.pathname);
@@ -665,6 +668,7 @@ export default {
             if (showPremium) {
                 const color = premiumAmount > 0 ? '#ff5a5a' : '#4ade80';
                 const sign = premiumAmount > 0 ? '⤴ ' : (premiumAmount < 0 ? '⤵ ' : '');
+                const premiumLabel = premiumAmount >= 0 ? '溢价' : '折价';
                 const y1From = premiumAmount > 0 ? '100%' : '-100%';
                 const y1To = premiumAmount > 0 ? '-100%' : '100%';
                 const y2From = premiumAmount > 0 ? '200%' : '0%';
@@ -682,9 +686,9 @@ export default {
 <g class="anim d2">
 <text x="456" y="210" font-size="16" opacity="0.6">交易金额 (${tc})</text>
 <text x="456" y="280" font-size="60" font-weight="700" fill="url(#g)">${ta.toFixed(3)}</text>
-<text x="456" y="310" font-size="14" opacity="0.4">溢价金额 (${tc})</text>
+<text x="456" y="310" font-size="14" opacity="0.4">${premiumLabel}金额 (${tc})</text>
 <text x="456" y="340" font-size="22" font-weight="600" fill="${color}" dominant-baseline="central"><tspan fill="url(#symWave)">${sign}</tspan> ${Math.abs(premiumAmount).toFixed(3)}</text>
-<text x="456" y="390" font-size="14" opacity="0.4">溢价幅度</text>
+<text x="456" y="390" font-size="14" opacity="0.4">${premiumLabel}幅度</text>
 <text x="456" y="420" font-size="22" font-weight="600" fill="${color}" dominant-baseline="central"><tspan fill="url(#symWave)">${sign}</tspan> ${Math.abs(premiumRate).toFixed(3)}%</text>
 </g>`;
             }
@@ -692,6 +696,7 @@ export default {
 <g class="anim d3">
 <text x="${rightX}" y="205" font-size="14" opacity="0.4">续费金额</text>
 <text x="${rightX}" y="240" font-size="22" font-weight="600" dominant-baseline="central">${ra.toFixed(3)} ${rc}${cycleText}</text>
+<text x="${rightX}" y="270" font-size="14" opacity="0.6">≈ ${(ra * er).toFixed(3)} ${tc}${cycleText}</text>
 <text x="${rightX}" y="310" font-size="14" opacity="0.4">剩余天数</text>
 <text x="${rightX}" y="340" font-size="22" font-weight="600" dominant-baseline="central">${remainDays} / ${pd} 天</text>
 <text x="${rightX}" y="390" font-size="14" opacity="0.4">到期时间</text>
