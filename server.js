@@ -212,7 +212,7 @@ app.get('/svg', (req, res) => {
 <g class="anim d3">
 <text x="${rightX}" y="205" font-size="14" opacity="0.4">续费金额</text>
 <text x="${rightX}" y="240" font-size="22" font-weight="600" dominant-baseline="central">${ra.toFixed(3)} ${rc}${cycleText}</text>
-<text x="${rightX}" y="270" font-size="14" opacity="0.6">≈ ${(ra * er).toFixed(3)} ${tc}${cycleText}</text>
+${rc !== tc ? `<text x="${rightX}" y="270" font-size="14" opacity="0.6">≈ ${(ra * er).toFixed(3)} ${tc}${cycleText}</text>` : ''}
 <text x="${rightX}" y="310" font-size="14" opacity="0.4">剩余天数</text>
 <text x="${rightX}" y="340" font-size="22" font-weight="600" dominant-baseline="central">${remainDays} / ${pd} 天</text>
 <text x="${rightX}" y="390" font-size="14" opacity="0.4">到期时间</text>
