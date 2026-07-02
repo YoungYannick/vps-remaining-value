@@ -13,11 +13,15 @@ let exchangeRates = {};
 let currentRate = 1.0000;
 async function fetchRates() {
     try {
-        const res = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+        const res = await fetch('/api/rates');
+        if (!res.ok) throw new Error('API Error');
         const data = await res.json();
         exchangeRates = data.rates;
+        document.getElementById('rate-source').innerText = `数据来源: ${data.source}`;
         updateRateField();
-    } catch (e) {}
+    } catch (e) {
+        document.getElementById('rate-source').innerText = '数据来源: 获取失败';
+    }
 }
 function updateRateField() {
     const from = els.rc.value;

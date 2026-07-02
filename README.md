@@ -29,6 +29,16 @@ docker run -d -p 45867:45867 --restart always --name vps-remaining-value vps-rem
 docker run -d -p 45867:45867 --restart always --name vps-remaining-value ghcr.io/youngyannick/vps-remaining-value:latest
 ```
 
+---
+
 ## Cloud Flare Worker 版本
 
-[vps-remaining-value-worker](vps-remaining-value-worker.js)
+- 原版 [vps-remaining-value-worker](vps-remaining-value-worker.js)
+- 混淆 [vps-remaining-value-worker-obfuscated](vps-remaining-value-worker-obfuscated.js)
+
+### 环境变量
+
+| 参数         | 含义        | 获取来源                                              |
+| ------------ | ----------- | ----------------------------------------------------- |
+| `V6_API_KEY` | 汇率API密钥 | [Exchangerate-api](https://www.exchangerate-api.com/) |
+| `SECRET_KEY` | 密钥        |                                                       |

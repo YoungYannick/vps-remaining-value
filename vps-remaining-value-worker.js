@@ -63,6 +63,9 @@ const htmlContent = `<!DOCTYPE html>
         border-bottom: 1px solid var(--panel-border);
         padding-bottom: 16px;
         text-shadow: 0 0 20px var(--gold-glow);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
     }
     .rate-preview {
         margin-bottom: 24px;
@@ -212,15 +215,35 @@ const htmlContent = `<!DOCTYPE html>
         .form-grid { grid-template-columns: 1fr; }
         .layout-wrapper { padding: 20px; }
     }
+    .github-link {
+        color: var(--text-muted);
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 400;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        text-shadow: none;
+        letter-spacing: 0;
+    }
+    .rate-source {
+        color: var(--text-muted);
+        font-size: 12px;
+        margin-top: 8px;
+        text-align: right;
+    }
+    #preview {
+        display: none;
+    }
   </style>
 </head>
 <body>
 <div class="layout-wrapper">
   <div class="layout">
     <div class="panel">
-      <div class="header" style="display: flex; justify-content: space-between; align-items: center;">
+      <div class="header">
         <span>VPS Remaining Value</span>
-        <a href="https://github.com/YoungYannick/vps-remaining-value" target="_blank" style="color: var(--text-muted); text-decoration: none; font-size: 14px; font-weight: 400; display: flex; align-items: center; gap: 6px; text-shadow: none; letter-spacing: 0;">
+        <a href="https://github.com/YoungYannick/vps-remaining-value" target="_blank" class="github-link">
           <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
           GitHub
         </a>
@@ -228,6 +251,7 @@ const htmlContent = `<!DOCTYPE html>
       <div class="rate-preview">
         <label>汇率预览</label>
         <input type="text" id="rate-display" readonly value="加载中...">
+        <div id="rate-source" class="rate-source"></div>
       </div>
       <div class="form-grid">
         <div class="input-group">
@@ -301,7 +325,7 @@ const htmlContent = `<!DOCTYPE html>
     </div>
     <div class="display">
       <div id="status-msg" class="placeholder-msg">请填写完整的参数以生成预览</div>
-      <img id="preview" src="" style="display: none;">
+       <img id="preview" src="">
     </div>
   </div>
 </div>
@@ -321,11 +345,15 @@ let exchangeRates = {};
 let currentRate = 1.0000;
 async function fetchRates() {
     try {
-        const res = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+        const res = await fetch('/api/rates');
+        if (!res.ok) throw new Error('API Error');
         const data = await res.json();
         exchangeRates = data.rates;
+        document.getElementById('rate-source').innerText = \`数据来源: \${data.source}\`;
         updateRateField();
-    } catch (e) {}
+    } catch (e) {
+        document.getElementById('rate-source').innerText = '数据来源: 获取失败';
+    }
 }
 function updateRateField() {
     const from = els.rc.value;
@@ -469,14 +497,67 @@ document.getElementById('reset-btn').addEventListener('click', (e) => {
 </html>`;
 
 export default {
-    async fetch(request) {
+    async fetch(request, env) {
         const url = new URL(request.url);
         const { pathname, searchParams } = url;
+        const clientIp = request.headers.get('cf-connecting-ip') || '';
+        const generateSign = async (t, ip) => {
+            const encoder = new TextEncoder();
+            const keyData = encoder.encode(env.SECRET_KEY);
+            const data = encoder.encode(t + ip);
+            const cryptoKey = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+            const signature = await crypto.subtle.sign('HMAC', cryptoKey, data);
+            return Array.from(new Uint8Array(signature)).map(b => b.toString(16).padStart(2, '0')).join('');
+        };
 
         if (pathname === '/') {
+            const t = Date.now().toString();
+            const sign = await generateSign(t, clientIp);
+            const b64Token = btoa(`${t}.${sign}`);
             return new Response(htmlContent, {
-                headers: { 'Content-Type': 'text/html; charset=utf-8' }
+                headers: {
+                    'Content-Type': 'text/html; charset=utf-8',
+                    'Set-Cookie': `vps_token=${b64Token}; HttpOnly; Path=/; Max-Age=3600; SameSite=Strict`
+                }
             });
+        }
+
+        if (pathname === '/api/rates') {
+            const host = url.host;
+            const referer = request.headers.get('referer') || '';
+            const origin = request.headers.get('origin') || '';
+            const isValidHost = (urlStr) => {
+                try { return urlStr ? new URL(urlStr).host === host : false; } catch (e) { return false; }
+            };
+            if (!isValidHost(referer) && !isValidHost(origin)) return new Response(JSON.stringify({ error: "Invalid Origin" }), { status: 403 });
+            const cookieHeader = request.headers.get('cookie') || '';
+            const match = cookieHeader.match(/vps_token=([^;]+)/);
+            if (!match) return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 });
+            let token = '';
+            try { token = atob(match[1]); } catch(e) { return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 }); }
+            const [t, sign] = token.split('.');
+            if (!t || !sign) return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 });
+            if (Date.now() - parseInt(t) > 3600000) return new Response(JSON.stringify({ error: "Expired" }), { status: 403 });
+            const expectedSign = await generateSign(t, clientIp);
+            if (sign !== expectedSign) return new Response(JSON.stringify({ error: "Invalid" }), { status: 403 });
+            const apis = [
+                { url: 'https://api.exchangerate.fun/latest?base=USD', name: 'ExchangeRate.fun' },
+                { url: `https://v6.exchangerate-api.com/v6/${env.V6_API_KEY}/latest/USD`, name: 'ExchangeRate-API V6' },
+                { url: 'https://api.exchangerate-api.com/v4/latest/USD', name: 'ExchangeRate-API V4' }
+            ];
+            for (const api of apis) {
+                try {
+                    const res = await fetch(api.url);
+                    if (!res.ok) continue;
+                    const data = await res.json();
+                    if (data.rates || data.conversion_rates) {
+                        return new Response(JSON.stringify({ source: api.name, rates: data.rates || data.conversion_rates }), {
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                    }
+                } catch (e) {}
+            }
+            return new Response(JSON.stringify({ error: "Failed" }), { status: 500 });
         }
 
         if (pathname === '/svg') {

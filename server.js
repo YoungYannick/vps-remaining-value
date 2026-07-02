@@ -1,17 +1,88 @@
 const express = require('express');
 const path = require('path');
+require('dotenv').config();
 const app = express();
+const crypto = require('crypto');
+const cookieParser = require('cookie-parser');
+const SECRET_KEY = process.env.SECRET_KEY;
+const V6_API_KEY = process.env.V6_API_KEY;
+const getClientIp = (req) => {
+    const cf = req.headers['cf-connecting-ip'];
+    if (cf) return cf.split(',')[0].trim();
+    const xff = req.headers['x-forwarded-for'];
+    if (xff) return xff.split(',')[0].trim();
+    return req.ip || req.socket.remoteAddress || '';
+};
+const isValidHost = (urlStr, expectedHost) => {
+    try {
+        if (!urlStr) return false;
+        return new URL(urlStr).host === expectedHost;
+    } catch (e) {
+        return false;
+    }
+};
 app.use((req, res, next) => {
     const start = Date.now();
     res.on('finish', () => {
-        const ip = req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.ip || req.socket.remoteAddress;
+        const ip = getClientIp(req);
         const d = new Date();
         const bjTime = new Date(d.getTime() + (d.getTimezoneOffset() * 60000) + 28800000).toISOString().replace('Z', '+08:00');
         console.log(`[${bjTime}] ${ip} ${req.method} ${req.originalUrl} ${res.statusCode} ${Date.now() - start}ms`);
     });
     next();
 });
+app.use(cookieParser(SECRET_KEY));
+app.use((req, res, next) => {
+    if (req.path === '/' || req.path === '/index.html') {
+        const t = Date.now().toString();
+        const ip = getClientIp(req);
+        const sign = crypto.createHmac('sha256', SECRET_KEY).update(t + ip).digest('hex');
+        const b64Token = Buffer.from(`${t}.${sign}`).toString('base64');
+        res.cookie('vps_token', b64Token, {
+            httpOnly: true,
+            path: '/',
+            maxAge: 3600000,
+            sameSite: 'strict',
+            signed: true
+        });
+    }
+    next();
+});
 app.use(express.static(path.join(__dirname, 'public')));
+app.get('/api/rates', async (req, res) => {
+    const host = req.get('host');
+    const refererValid = isValidHost(req.headers.referer, host);
+    const originValid = isValidHost(req.headers.origin, host);
+    if (!refererValid && !originValid) return res.status(403).json({ error: "Invalid Origin" });
+    const encodedToken = req.signedCookies.vps_token;
+    if (!encodedToken) return res.status(403).json({ error: "Forbidden" });
+    const token = Buffer.from(encodedToken, 'base64').toString('utf-8');
+    const [t, sign] = token.split('.');
+    if (!t || !sign) return res.status(403).json({ error: "Forbidden" });
+    if (Date.now() - parseInt(t) > 3600000) return res.status(403).json({ error: "Expired" });
+    const ip = getClientIp(req);
+    const expectedSign = crypto.createHmac('sha256', SECRET_KEY).update(t + ip).digest('hex');
+    if (sign !== expectedSign) return res.status(403).json({ error: "Invalid" });
+    const apis = [
+        { url: 'https://api.exchangerate.fun/latest?base=USD', name: 'ExchangeRate.fun' },
+        { url: `https://v6.exchangerate-api.com/v6/${V6_API_KEY}/latest/USD`, name: 'ExchangeRate-API V6' },
+        { url: 'https://api.exchangerate-api.com/v4/latest/USD', name: 'ExchangeRate-API V4' }
+    ];
+    for (const api of apis) {
+        try {
+            const response = await fetch(api.url);
+            if (!response.ok) continue;
+            const data = await response.json();
+            if (data.rates || data.conversion_rates) {
+                return res.json({
+                    source: api.name,
+                    rates: data.rates || data.conversion_rates
+                });
+            }
+        } catch (e) {}
+    }
+    res.status(500).json({ error: "Failed" });
+});
 app.get('/svg', (req, res) => {
     const ra = parseFloat(req.query.ra) || 0;
     const rc = req.query.rc || 'USD';
