@@ -564,34 +564,40 @@ export default {
                 { url: 'https://api.exchangerate-api.com/v4/latest/USD', name: 'ExchangeRate-API V4', ttl: 300000 }
             ];
             for (const api of apis) {
-                try {
-                    const res = await fetch(api.url, {
-                        headers: {
-                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-                            'Accept': 'application/json, text/plain, */*',
-                            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-                            'Sec-Fetch-Dest': 'empty',
-                            'Sec-Fetch-Mode': 'cors',
-                            'Sec-Fetch-Site': 'cross-site'
-                        }
-                    });
-                    if (!res.ok) continue;
-                    const data = await res.json();
-                    if (data.rates) {
-                        ratesCache = {
-                            source: api.name,
-                            rates: data.rates,
-                            cachedAt: Date.now()
-                        };
-                        ratesCacheTime = Date.now() + api.ttl;
-                        return new Response(JSON.stringify({
-                            source: api.name,
-                            rates: ratesCache.rates
-                        }), {
-                            headers: { 'Content-Type': 'application/json' }
+                for (let attempt = 0; attempt < 3; attempt++) {
+                    try {
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 5000);
+                        const response = await fetch(api.url, {
+                            headers: {
+                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+                                'Accept': 'application/json, text/plain, */*',
+                                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                                'Sec-Fetch-Dest': 'empty',
+                                'Sec-Fetch-Mode': 'cors',
+                                'Sec-Fetch-Site': 'cross-site'
+                            },
+                            signal: controller.signal
                         });
-                    }
-                } catch (e) {}
+                        clearTimeout(timeoutId);
+                        if (!response.ok) throw new Error();
+                        const data = await response.json();
+                        if (data.rates || data.conversion_rates) {
+                            ratesCache = {
+                                source: api.name,
+                                rates: data.rates || data.conversion_rates,
+                                cachedAt: Date.now()
+                            };
+                            ratesCacheTime = Date.now() + api.ttl;
+                            return new Response(JSON.stringify({
+                                source: api.name,
+                                rates: ratesCache.rates
+                            }), {
+                                headers: { 'Content-Type': 'application/json' }
+                            });
+                        }
+                    } catch (e) {}
+                }
             }
             return new Response(JSON.stringify({ error: "Failed" }), { status: 500 });
         }
