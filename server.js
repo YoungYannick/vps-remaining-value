@@ -6,6 +6,8 @@ const crypto = require('crypto');
 const cookieParser = require('cookie-parser');
 const SECRET_KEY = process.env.SECRET_KEY;
 const V6_API_KEY = process.env.V6_API_KEY;
+let ratesCache = null;
+let ratesCacheTime = 0;
 const getClientIp = (req) => {
     const cf = req.headers['cf-connecting-ip'];
     if (cf) return cf.split(',')[0].trim();
@@ -63,20 +65,40 @@ app.get('/api/rates', async (req, res) => {
     const ip = getClientIp(req);
     const expectedSign = crypto.createHmac('sha256', SECRET_KEY).update(t + ip).digest('hex');
     if (sign !== expectedSign) return res.status(403).json({ error: "Invalid" });
+    if (ratesCache && Date.now() < ratesCacheTime) {
+        return res.json({
+            source: `${ratesCache.source} (缓存)`,
+            rates: ratesCache.rates
+        });
+    }
     const apis = [
-        { url: 'https://api.exchangerate.fun/latest?base=USD', name: 'ExchangeRate.fun' },
-        { url: `https://v6.exchangerate-api.com/v6/${V6_API_KEY}/latest/USD`, name: 'ExchangeRate-API V6' },
-        { url: 'https://api.exchangerate-api.com/v4/latest/USD', name: 'ExchangeRate-API V4' }
+        { url: 'https://api.exchangerate.fun/latest?base=USD', name: 'ExchangeRate.fun', ttl: 3600000 },
+        { url: `https://v6.exchangerate-api.com/v6/${V6_API_KEY}/latest/USD`, name: 'ExchangeRate-API V6', ttl: 3600000 },
+        { url: 'https://api.exchangerate-api.com/v4/latest/USD', name: 'ExchangeRate-API V4', ttl: 300000 }
     ];
     for (const api of apis) {
         try {
-            const response = await fetch(api.url);
+            const response = await fetch(api.url, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+                    'Accept': 'application/json, text/plain, */*',
+                    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                    'Sec-Fetch-Dest': 'empty',
+                    'Sec-Fetch-Mode': 'cors',
+                    'Sec-Fetch-Site': 'cross-site'
+                }
+            });
             if (!response.ok) continue;
             const data = await response.json();
             if (data.rates || data.conversion_rates) {
-                return res.json({
+                ratesCache = {
                     source: api.name,
                     rates: data.rates || data.conversion_rates
+                };
+                ratesCacheTime = Date.now() + api.ttl;
+                return res.json({
+                    source: api.name,
+                    rates: ratesCache.rates
                 });
             }
         } catch (e) {}

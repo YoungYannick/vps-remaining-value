@@ -499,6 +499,9 @@ document.getElementById('reset-btn').addEventListener('click', (e) => {
 </body>
 </html>`;
 
+let ratesCache = null;
+let ratesCacheTime = 0;
+
 export default {
     async fetch(request, env) {
         const url = new URL(request.url);
@@ -543,18 +546,43 @@ export default {
             if (Date.now() - parseInt(t) > 3600000) return new Response(JSON.stringify({ error: "Expired" }), { status: 403 });
             const expectedSign = await generateSign(t, clientIp);
             if (sign !== expectedSign) return new Response(JSON.stringify({ error: "Invalid" }), { status: 403 });
+            if (ratesCache && Date.now() < ratesCacheTime) {
+                return new Response(JSON.stringify({
+                    source: `${ratesCache.source} (缓存)`,
+                    rates: ratesCache.rates
+                }), {
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            }
             const apis = [
-                { url: 'https://api.exchangerate.fun/latest?base=USD', name: 'ExchangeRate.fun' },
-                { url: `https://v6.exchangerate-api.com/v6/${env.V6_API_KEY}/latest/USD`, name: 'ExchangeRate-API V6' },
-                { url: 'https://api.exchangerate-api.com/v4/latest/USD', name: 'ExchangeRate-API V4' }
+                { url: 'https://api.exchangerate.fun/latest?base=USD', name: 'ExchangeRate.fun', ttl: 3600000 },
+                { url: `https://v6.exchangerate-api.com/v6/${env.V6_API_KEY}/latest/USD`, name: 'ExchangeRate-API V6', ttl: 3600000 },
+                { url: 'https://api.exchangerate-api.com/v4/latest/USD', name: 'ExchangeRate-API V4', ttl: 300000 }
             ];
             for (const api of apis) {
                 try {
-                    const res = await fetch(api.url);
+                    const res = await fetch(api.url, {
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+                            'Accept': 'application/json, text/plain, */*',
+                            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                            'Sec-Fetch-Dest': 'empty',
+                            'Sec-Fetch-Mode': 'cors',
+                            'Sec-Fetch-Site': 'cross-site'
+                        }
+                    });
                     if (!res.ok) continue;
                     const data = await res.json();
                     if (data.rates || data.conversion_rates) {
-                        return new Response(JSON.stringify({ source: api.name, rates: data.rates || data.conversion_rates }), {
+                        ratesCache = {
+                            source: api.name,
+                            rates: data.rates || data.conversion_rates
+                        };
+                        ratesCacheTime = Date.now() + api.ttl;
+                        return new Response(JSON.stringify({
+                            source: api.name,
+                            rates: ratesCache.rates
+                        }), {
                             headers: { 'Content-Type': 'application/json' }
                         });
                     }
