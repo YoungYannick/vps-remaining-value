@@ -1,4 +1,4 @@
-const els = ['ra', 'rc', 'pd', 'ed', 'td', 'ta', 'tc'].reduce((acc, id) => {
+const els = ['ra', 'rc', 'pd', 'cm', 'ed', 'td', 'dr', 'pa', 'ta', 'tc'].reduce((acc, id) => {
     acc[id] = document.getElementById(id);
     return acc;
 }, {});
@@ -58,6 +58,79 @@ function update() {
     img.style.display = 'block';
     img.src = getUrl();
 }
+function calculateRV() {
+    if (!els.ra.value || !els.pd.value || !els.ed.value || !els.td.value) return 0;
+    const ra = parseFloat(els.ra.value);
+    const pd = parseInt(els.pd.value);
+    const endMs = new Date(els.ed.value).getTime();
+    const transMs = new Date(els.td.value).getTime();
+    const remainDays = Math.max(0, Math.ceil((endMs - transMs) / (1000 * 60 * 60 * 24)));
+    let totalCycleDays = pd;
+    if (els.cm && els.cm.value === 'real') {
+        const d = new Date(els.ed.value);
+        const day = d.getDate();
+        if (pd === 30) d.setMonth(d.getMonth() - 1);
+        else if (pd === 90) d.setMonth(d.getMonth() - 3);
+        else if (pd === 180) d.setMonth(d.getMonth() - 6);
+        else if (pd === 365) d.setFullYear(d.getFullYear() - 1);
+        else if (pd === 730) d.setFullYear(d.getFullYear() - 2);
+        else if (pd === 1095) d.setFullYear(d.getFullYear() - 3);
+        else if (pd === 1825) d.setFullYear(d.getFullYear() - 5);
+        else d.setDate(d.getDate() - pd);
+        if ((pd === 30 || pd === 90 || pd === 180) && d.getDate() !== day) {
+            d.setDate(0);
+        }
+        totalCycleDays = Math.round((endMs - d.getTime()) / (1000 * 60 * 60 * 24));
+    }
+    return (ra / totalCycleDays) * remainDays * currentRate;
+}
+els.dr.addEventListener('input', (e) => {
+    if (e.target.value === '') {
+        els.ta.value = '';
+        els.pa.value = '';
+        update();
+        return;
+    }
+    const rv = calculateRV();
+    if (rv > 0) {
+        let drVal = parseFloat(e.target.value);
+        if (isNaN(drVal)) return;
+        if (drVal > 1 && drVal <= 10) drVal = drVal / 10;
+        else if (drVal > 10) drVal = drVal / 100;
+        const targetTa = rv * drVal;
+        els.ta.value = targetTa.toFixed(3);
+        els.pa.value = (targetTa - rv).toFixed(3);
+        update();
+    }
+});
+els.pa.addEventListener('input', (e) => {
+    if (e.target.value === '') {
+        els.ta.value = '';
+        els.dr.value = '';
+        update();
+        return;
+    }
+    const rv = calculateRV();
+    if (rv > 0) {
+        const paVal = parseFloat(e.target.value);
+        if (isNaN(paVal)) return;
+        const targetTa = rv + paVal;
+        els.ta.value = Math.max(0, targetTa).toFixed(3);
+        els.dr.value = (targetTa / rv).toFixed(3);
+        update();
+    }
+});
+els.ta.addEventListener('input', (e) => {
+    const rv = calculateRV();
+    if (rv > 0 && e.target.value !== '') {
+        const taVal = parseFloat(e.target.value);
+        els.dr.value = (taVal / rv).toFixed(3);
+        els.pa.value = (taVal - rv).toFixed(3);
+    } else {
+        els.dr.value = '';
+        els.pa.value = '';
+    }
+});
 Object.values(els).forEach(el => {
     el.addEventListener('input', update);
 });
@@ -137,20 +210,23 @@ if (urlParams.has('er')) {
 } else {
     fetchRates();
 }
-document.getElementById('refresh-rate-btn').addEventListener('click', async (e) => {
-    tempText(e.target, '正在刷新...');
+const refreshIcon = document.getElementById('refresh-icon');
+refreshIcon.addEventListener('click', async (e) => {
+    refreshIcon.classList.add('spinning');
     await fetchRates();
     const url = new URL(window.location.href);
     if (url.searchParams.has('er')) {
         url.searchParams.delete('er');
         window.history.replaceState({}, '', url.pathname + url.search);
     }
-    tempText(e.target, '汇率已刷新');
+    setTimeout(() => refreshIcon.classList.remove('spinning'), 500);
 });
 document.getElementById('reset-btn').addEventListener('click', (e) => {
     els.ra.value = '';
     els.rc.value = 'USD';
     els.pd.value = '365';
+    els.cm.value = 'real';
+    initCapsule();
     const d = new Date();
     const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
     const bjTime = new Date(utc + (8 * 60 * 60 * 1000));
@@ -158,8 +234,32 @@ document.getElementById('reset-btn').addEventListener('click', (e) => {
     const tomorrow = new Date(bjTime.getTime() + (24 * 60 * 60 * 1000));
     els.ed.value = tomorrow.toISOString().split('T')[0];
     els.ta.value = '';
+    els.dr.value = '';
+    els.pa.value = '';
     els.tc.value = 'CNY';
     window.history.replaceState({}, '', window.location.pathname);
     fetchRates();
     tempText(e.target, '已重置');
 });
+const cmSwitch = document.getElementById('cm-switch');
+const cmBtns = document.querySelectorAll('.cm-btn');
+const cmInput = document.getElementById('cm');
+function initCapsule() {
+    const val = cmInput.value || 'real';
+    cmBtns.forEach(b => b.classList.remove('active'));
+    document.querySelector(`.cm-btn[data-value="${val}"]`)?.classList.add('active');
+    if (val === 'real') {
+        cmSwitch.classList.add('is-real');
+    } else {
+        cmSwitch.classList.remove('is-real');
+    }
+}
+cmBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        const val = btn.dataset.value;
+        cmInput.value = val;
+        initCapsule();
+        update();
+    });
+});
+initCapsule();

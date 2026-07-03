@@ -30,10 +30,36 @@ const htmlContent = `<!DOCTYPE html>
         box-sizing: border-box;
         overflow-x: hidden;
     }
+    ::selection {
+        background: var(--gold);
+        color: #000;
+    }
+    ::-moz-selection {
+        background: var(--gold);
+        color: #000;
+    }
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+        background: var(--bg);
+    }
+    ::-webkit-scrollbar-thumb {
+        background: var(--panel-border);
+        border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: var(--text-muted);
+    }
+    html {
+        scrollbar-width: thin;
+        scrollbar-color: var(--panel-border) var(--bg);
+    }
     .layout-wrapper {
         width: 100%;
-        max-width: 1400px;
-        padding: 40px;
+        max-width: 95%;
+        padding: 20px;
         box-sizing: border-box;
         animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
     }
@@ -68,11 +94,15 @@ const htmlContent = `<!DOCTYPE html>
         align-items: center;
     }
     .rate-preview {
+        position: relative;
         margin-bottom: 24px;
         background: rgba(235, 210, 136, 0.03);
         padding: 16px;
         border-radius: 12px;
         border: 1px solid rgba(235, 210, 136, 0.1);
+    }
+    .section-mt {
+        margin-top: 24px;
     }
     .rate-preview label {
         color: var(--gold-dim);
@@ -91,7 +121,7 @@ const htmlContent = `<!DOCTYPE html>
     }
     .form-grid {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(3, 1fr);
         gap: 20px;
         flex-grow: 1;
     }
@@ -156,6 +186,14 @@ const htmlContent = `<!DOCTYPE html>
         border-color: var(--gold-dim);
         box-shadow: 0 0 0 3px var(--gold-glow);
     }
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    input[type="number"] {
+        -moz-appearance: textfield;
+    }
     .btn-group {
         margin-top: 32px;
         display: flex;
@@ -207,14 +245,6 @@ const htmlContent = `<!DOCTYPE html>
         0%, 100% { opacity: 0.5; }
         50% { opacity: 1; }
     }
-    @media (max-width: 1200px) {
-        .layout { flex-direction: column; }
-        .display { min-height: 400px; }
-    }
-    @media (max-width: 600px) {
-        .form-grid { grid-template-columns: 1fr; }
-        .layout-wrapper { padding: 20px; }
-    }
     .github-link {
         color: var(--text-muted);
         text-decoration: none;
@@ -235,6 +265,137 @@ const htmlContent = `<!DOCTYPE html>
     #preview {
         display: none;
     }
+    .section-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--gold);
+        margin-bottom: 16px;
+        border-left: 3px solid var(--gold);
+        padding-left: 10px;
+        letter-spacing: 0.5px;
+    }
+    .rate-header {
+        margin-bottom: 6px;
+    }
+    .rate-header label { margin-bottom: 0; }
+    .icon-btn {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        background: transparent;
+        border: none;
+        color: var(--gold-dim);
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        box-shadow: none;
+        min-width: auto;
+    }
+    .icon-btn:hover {
+        color: var(--gold);
+        background: rgba(235, 210, 136, 0.1);
+        transform: translateY(0);
+        box-shadow: none;
+    }
+    .icon-btn.spinning svg {
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+    .cm-header {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 8px;
+    }
+    .cm-header label { margin-bottom: 0; }
+    .tooltip-container {
+        position: relative;
+        display: flex;
+        align-items: center;
+        color: var(--text-muted);
+        cursor: help;
+    }
+    .tooltip-container:hover { color: var(--gold); }
+    .tooltip {
+        position: absolute;
+        bottom: 150%;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #202026;
+        color: #fff;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 12px;
+        white-space: nowrap;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.2s;
+        border: 1px solid var(--panel-border);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+        z-index: 10;
+        line-height: 1.5;
+    }
+    .tooltip-container:hover .tooltip {
+        opacity: 1;
+        visibility: visible;
+    }
+    .capsule-switch {
+        display: flex;
+        background: #0a0a0d;
+        border: 1px solid var(--panel-border);
+        border-radius: 8px;
+        position: relative;
+        padding: 4px;
+        height: 44px;
+        box-sizing: border-box;
+    }
+    .cm-btn {
+        flex: 1;
+        background: transparent;
+        color: var(--text-muted);
+        border: none;
+        padding: 0;
+        font-size: 13px;
+        font-weight: 500;
+        border-radius: 6px;
+        cursor: pointer;
+        z-index: 1;
+        transition: color 0.3s;
+        box-shadow: none;
+        min-width: auto;
+    }
+    .cm-btn.active { color: #000; }
+    .cm-btn:hover {
+        transform: none;
+        box-shadow: none;
+        background: transparent;
+    }
+    .capsule-bg {
+        position: absolute;
+        top: 4px;
+        bottom: 4px;
+        width: calc(50% - 4px);
+        background: var(--gold);
+        border-radius: 6px;
+        transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 0;
+        left: 4px;
+    }
+    .capsule-switch.is-real .capsule-bg {
+        left: 50%;
+    }
+    @media (max-width: 1200px) {
+        .layout { flex-direction: column; }
+        .display { min-height: 400px; }
+    }
+    @media (max-width: 600px) {
+        .form-grid { grid-template-columns: 1fr; }
+        .layout-wrapper { padding: 20px; }
+    }
   </style>
 </head>
 <body>
@@ -249,11 +410,45 @@ const htmlContent = `<!DOCTYPE html>
         </a>
       </div>
       <div class="rate-preview">
-        <label>汇率预览</label>
+        <div class="rate-header">
+          <label>汇率预览</label>
+          <button id="refresh-icon" class="icon-btn">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+          </button>
+        </div>
         <input type="text" id="rate-display" readonly value="加载中...">
         <div id="rate-source" class="rate-source"></div>
       </div>
+
+      <div class="section-title">物品信息</div>
       <div class="form-grid">
+        <div class="input-group">
+          <div class="cm-header">
+            <label>计算模式</label>
+            <div class="help-icon tooltip-container">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+              <div class="tooltip">真实天数：按自然月/年对冲计算<br>固定天数：每月按30天/每年365天计算</div>
+            </div>
+          </div>
+          <div class="capsule-switch is-real" id="cm-switch">
+            <div class="capsule-bg"></div>
+            <button type="button" class="cm-btn" data-value="fixed">固定</button>
+            <button type="button" class="cm-btn active" data-value="real">真实</button>
+            <input type="hidden" id="cm" value="real">
+          </div>
+        </div>
+        <div class="input-group">
+          <label>付款周期</label>
+          <select id="pd">
+            <option value="30">月付</option>
+            <option value="90">季付</option>
+            <option value="180">半年付</option>
+            <option value="365" selected>年付</option>
+            <option value="730">两年付</option>
+            <option value="1095">三年付</option>
+            <option value="1825">五年付</option>
+          </select>
+        </div>
         <div class="input-group">
           <label>续费金额</label>
           <input type="number" id="ra" step="0.01">
@@ -275,28 +470,16 @@ const htmlContent = `<!DOCTYPE html>
           </select>
         </div>
         <div class="input-group">
-          <label>付款周期</label>
-          <select id="pd">
-            <option value="30">月付 (30天)</option>
-            <option value="90">季付 (90天)</option>
-            <option value="180">半年付 (180天)</option>
-            <option value="365" selected>年付 (365天)</option>
-            <option value="730">两年付 (730天)</option>
-            <option value="1095">三年付 (1095天)</option>
-            <option value="1825">五年付 (1825天)</option>
-          </select>
-        </div>
-        <div class="input-group">
           <label>到期时间</label>
           <input type="date" id="ed">
         </div>
+      </div>
+
+      <div class="section-title section-mt">交易信息</div>
+      <div class="form-grid">
         <div class="input-group">
           <label>交易时间</label>
           <input type="date" id="td">
-        </div>
-        <div class="input-group">
-          <label>交易金额 (可选)</label>
-          <input type="number" id="ta" step="0.01">
         </div>
         <div class="input-group">
           <label>交易货币</label>
@@ -314,12 +497,23 @@ const htmlContent = `<!DOCTYPE html>
             <option value="INR">印度卢比 (INR)</option>
           </select>
         </div>
+        <div class="input-group">
+          <label>交易金额 (可选)</label>
+          <input type="number" id="ta" step="0.01">
+        </div>
+        <div class="input-group">
+          <label>溢价金额 (可选, 负数表示折价)</label>
+          <input type="number" id="pa" step="0.01">
+        </div>
+        <div class="input-group">
+          <label>交易折扣 (可选, 如: 0.88 / 8.8 / 88)</label>
+          <input type="number" id="dr" step="0.01">
+        </div>
       </div>
       <div class="btn-group">
         <button id="copy-md-btn" class="alt-btn">复制 Markdown</button>
         <button id="copy-link-btn" class="alt-btn">复制分享链接</button>
         <button id="download-btn" class="alt-btn">下载 SVG</button>
-        <button id="refresh-rate-btn" class="alt-btn">刷新汇率</button>
         <button id="reset-btn" class="alt-btn">重置表单</button>
       </div>
     </div>
@@ -330,7 +524,7 @@ const htmlContent = `<!DOCTYPE html>
   </div>
 </div>
 <script>
-const els = ['ra', 'rc', 'pd', 'ed', 'td', 'ta', 'tc'].reduce((acc, id) => {
+const els = ['ra', 'rc', 'pd', 'cm', 'ed', 'td', 'dr', 'pa', 'ta', 'tc'].reduce((acc, id) => {
     acc[id] = document.getElementById(id);
     return acc;
 }, {});
@@ -351,7 +545,7 @@ async function fetchRates() {
         if (!res.ok) throw new Error('API Error');
         const data = await res.json();
         exchangeRates = data.rates;
-        document.getElementById('rate-source').innerText = \`数据来源: \${data.source}\`;
+        document.getElementById('rate-source').innerText = \`数据来源: ${data.source}\`;
         updateRateField();
     } catch (e) {
         document.getElementById('rate-source').innerText = '数据来源: 获取失败';
@@ -363,10 +557,10 @@ function updateRateField() {
     if (exchangeRates[from] && exchangeRates[to]) {
         const rate = exchangeRates[to] / exchangeRates[from];
         currentRate = rate.toFixed(4);
-        rateDisplay.value = \`1 \${from} = \${rate.toFixed(4)} \${to}\`;
+        rateDisplay.value = \`1 ${from} = ${rate.toFixed(4)} ${to}\`;
     } else {
         currentRate = 1.0000;
-        rateDisplay.value = \`1 \${from} = 1 \${to}\`;
+        rateDisplay.value = \`1 ${from} = 1 ${to}\`;
     }
     update();
 }
@@ -378,7 +572,7 @@ function getUrl() {
         }
     }
     params.append('er', typeof currentRate === 'number' ? currentRate.toFixed(4) : parseFloat(currentRate).toFixed(4));
-    return \`/svg?\${params.toString()}\`;
+    return \`/svg?${params.toString()}\`;
 }
 function update() {
     if (!els.ra.value || !els.pd.value || !els.ed.value) {
@@ -390,6 +584,79 @@ function update() {
     img.style.display = 'block';
     img.src = getUrl();
 }
+function calculateRV() {
+    if (!els.ra.value || !els.pd.value || !els.ed.value || !els.td.value) return 0;
+    const ra = parseFloat(els.ra.value);
+    const pd = parseInt(els.pd.value);
+    const endMs = new Date(els.ed.value).getTime();
+    const transMs = new Date(els.td.value).getTime();
+    const remainDays = Math.max(0, Math.ceil((endMs - transMs) / (1000 * 60 * 60 * 24)));
+    let totalCycleDays = pd;
+    if (els.cm && els.cm.value === 'real') {
+        const d = new Date(els.ed.value);
+        const day = d.getDate();
+        if (pd === 30) d.setMonth(d.getMonth() - 1);
+        else if (pd === 90) d.setMonth(d.getMonth() - 3);
+        else if (pd === 180) d.setMonth(d.getMonth() - 6);
+        else if (pd === 365) d.setFullYear(d.getFullYear() - 1);
+        else if (pd === 730) d.setFullYear(d.getFullYear() - 2);
+        else if (pd === 1095) d.setFullYear(d.getFullYear() - 3);
+        else if (pd === 1825) d.setFullYear(d.getFullYear() - 5);
+        else d.setDate(d.getDate() - pd);
+        if ((pd === 30 || pd === 90 || pd === 180) && d.getDate() !== day) {
+            d.setDate(0);
+        }
+        totalCycleDays = Math.round((endMs - d.getTime()) / (1000 * 60 * 60 * 24));
+    }
+    return (ra / totalCycleDays) * remainDays * currentRate;
+}
+els.dr.addEventListener('input', (e) => {
+    if (e.target.value === '') {
+        els.ta.value = '';
+        els.pa.value = '';
+        update();
+        return;
+    }
+    const rv = calculateRV();
+    if (rv > 0) {
+        let drVal = parseFloat(e.target.value);
+        if (isNaN(drVal)) return;
+        if (drVal > 1 && drVal <= 10) drVal = drVal / 10;
+        else if (drVal > 10) drVal = drVal / 100;
+        const targetTa = rv * drVal;
+        els.ta.value = targetTa.toFixed(3);
+        els.pa.value = (targetTa - rv).toFixed(3);
+        update();
+    }
+});
+els.pa.addEventListener('input', (e) => {
+    if (e.target.value === '') {
+        els.ta.value = '';
+        els.dr.value = '';
+        update();
+        return;
+    }
+    const rv = calculateRV();
+    if (rv > 0) {
+        const paVal = parseFloat(e.target.value);
+        if (isNaN(paVal)) return;
+        const targetTa = rv + paVal;
+        els.ta.value = Math.max(0, targetTa).toFixed(3);
+        els.dr.value = (targetTa / rv).toFixed(3);
+        update();
+    }
+});
+els.ta.addEventListener('input', (e) => {
+    const rv = calculateRV();
+    if (rv > 0 && e.target.value !== '') {
+        const taVal = parseFloat(e.target.value);
+        els.dr.value = (taVal / rv).toFixed(3);
+        els.pa.value = (taVal - rv).toFixed(3);
+    } else {
+        els.dr.value = '';
+        els.pa.value = '';
+    }
+});
 Object.values(els).forEach(el => {
     el.addEventListener('input', update);
 });
@@ -427,7 +694,7 @@ document.getElementById('copy-md-btn').addEventListener('click', (e) => {
     }
     params.append('er', typeof currentRate === 'number' ? currentRate.toFixed(4) : parseFloat(currentRate).toFixed(4));
     const shareUrl = window.location.origin + window.location.pathname + '?' + params.toString();
-    fallbackCopyTextToClipboard(\`[![VPS Remaining Value](\${fullUrl})](\${shareUrl} "查看工具")\`);
+    fallbackCopyTextToClipboard(\`[![VPS Remaining Value](${fullUrl})](${shareUrl} "查看工具")\`);
     tempText(e.target, '已复制 Markdown');
 });
 document.getElementById('copy-link-btn').addEventListener('click', (e) => {
@@ -447,7 +714,7 @@ document.getElementById('download-btn').addEventListener('click', async (e) => {
     const blob = await res.blob();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = \`vps-remaining-value-\${els.td.value}.svg\`;
+    a.download = \`vps-remaining-value-${els.td.value}.svg\`;
     a.click();
     URL.revokeObjectURL(a.href);
     tempText(e.target, '已下载 SVG');
@@ -464,25 +731,28 @@ if (urlParams.has('er')) {
     currentRate = parseFloat(urlParams.get('er')).toFixed(4);
     const from = els.rc.value || 'USD';
     const to = els.tc.value || 'CNY';
-    rateDisplay.value = \`1 \${from} = \${currentRate} \${to}\`;
+    rateDisplay.value = \`1 ${from} = ${currentRate} ${to}\`;
     update();
 } else {
     fetchRates();
 }
-document.getElementById('refresh-rate-btn').addEventListener('click', async (e) => {
-    tempText(e.target, '正在刷新...');
+const refreshIcon = document.getElementById('refresh-icon');
+refreshIcon.addEventListener('click', async (e) => {
+    refreshIcon.classList.add('spinning');
     await fetchRates();
     const url = new URL(window.location.href);
     if (url.searchParams.has('er')) {
         url.searchParams.delete('er');
         window.history.replaceState({}, '', url.pathname + url.search);
     }
-    tempText(e.target, '汇率已刷新');
+    setTimeout(() => refreshIcon.classList.remove('spinning'), 500);
 });
 document.getElementById('reset-btn').addEventListener('click', (e) => {
     els.ra.value = '';
     els.rc.value = 'USD';
     els.pd.value = '365';
+    els.cm.value = 'real';
+    initCapsule();
     const d = new Date();
     const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
     const bjTime = new Date(utc + (8 * 60 * 60 * 1000));
@@ -490,11 +760,35 @@ document.getElementById('reset-btn').addEventListener('click', (e) => {
     const tomorrow = new Date(bjTime.getTime() + (24 * 60 * 60 * 1000));
     els.ed.value = tomorrow.toISOString().split('T')[0];
     els.ta.value = '';
+    els.dr.value = '';
+    els.pa.value = '';
     els.tc.value = 'CNY';
     window.history.replaceState({}, '', window.location.pathname);
     fetchRates();
     tempText(e.target, '已重置');
 });
+const cmSwitch = document.getElementById('cm-switch');
+const cmBtns = document.querySelectorAll('.cm-btn');
+const cmInput = document.getElementById('cm');
+function initCapsule() {
+    const val = cmInput.value || 'real';
+    cmBtns.forEach(b => b.classList.remove('active'));
+    document.querySelector(\`.cm-btn[data-value="${val}"]\`)?.classList.add('active');
+    if (val === 'real') {
+        cmSwitch.classList.add('is-real');
+    } else {
+        cmSwitch.classList.remove('is-real');
+    }
+}
+cmBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        const val = btn.dataset.value;
+        cmInput.value = val;
+        initCapsule();
+        update();
+    });
+});
+initCapsule();
 </script>
 </body>
 </html>`;
@@ -599,7 +893,30 @@ export default {
                     } catch (e) {}
                 }
             }
-            return new Response(JSON.stringify({ error: "Failed" }), { status: 500 });
+            const fallbackRates = {
+                "USD": 1,
+                "CNY": 6.78,
+                "EUR": 0.87,
+                "GBP": 0.75,
+                "HKD": 7.84,
+                "JPY": 160.80,
+                "TWD": 31.93,
+                "AUD": 1.44,
+                "CAD": 1.42,
+                "RUB": 77.24,
+                "INR": 95.30
+            };
+            ratesCache = {
+                source: '离线备用汇率',
+                rates: fallbackRates,
+                cachedAt: Date.now()
+            };
+            return new Response(JSON.stringify({
+                source: ratesCache.source,
+                rates: ratesCache.rates
+            }), {
+                headers: { 'Content-Type': 'application/json' }
+            });
         }
 
         if (pathname === '/svg') {
@@ -612,6 +929,7 @@ export default {
             const er = parseFloat(searchParams.get('er')) || 1;
             const taParam = searchParams.get('ta');
             const ta = (taParam !== null && taParam !== '') ? parseFloat(taParam) : null;
+            const cm = searchParams.get('cm') || 'fixed';
 
             if (!ed) {
                 return new Response(`<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="530" viewBox="50 50 1100 530" style="margin: auto; position: absolute; top: 0; left: 0; right: 0; bottom: 0;"><rect x="50" y="50" width="1100" height="530" rx="20" fill="#0d0d12"/><text x="600" y="315" fill="#ebd288" font-size="24" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif"></text></svg>`, {
@@ -623,7 +941,23 @@ export default {
             const transMs = new Date(td).getTime();
             const remainMs = Math.max(0, endMs - transMs);
             const remainDays = Math.ceil(remainMs / (1000 * 60 * 60 * 24));
-            const remainingValueBase = (ra / pd) * remainDays;
+            let totalCycleDays = pd;
+            if (cm === 'real') {
+                const d = new Date(ed);
+                const day = d.getDate();
+                if (pd === 30) d.setMonth(d.getMonth() - 1);
+                else if (pd === 90) d.setMonth(d.getMonth() - 3);
+                else if (pd === 180) d.setMonth(d.getMonth() - 6);
+                else if (pd === 365) d.setFullYear(d.getFullYear() - 1);
+                else if (pd === 730) d.setFullYear(d.getFullYear() - 2);
+                else if (pd === 1095) d.setFullYear(d.getFullYear() - 3);
+                else if (pd === 1825) d.setFullYear(d.getFullYear() - 5);
+                if ((pd === 30 || pd === 90 || pd === 180) && d.getDate() !== day) {
+                    d.setDate(0);
+                }
+                totalCycleDays = Math.round((endMs - d.getTime()) / (1000 * 60 * 60 * 24));
+            }
+            const remainingValueBase = (ra / totalCycleDays) * remainDays;
             const remainingValueTarget = remainingValueBase * er;
             let showPremium = ta !== null;
             let premiumAmount = 0;
@@ -644,7 +978,7 @@ export default {
             else if (pd === 1825) cycleText = '/五年';
             else cycleText = `/${pd}天`;
 
-            const pct = Math.max(0, (remainDays / pd) * 100);
+            const pct = Math.max(0, (remainDays / totalCycleDays) * 100);
             const barPct = Math.min(100, pct);
             const rightX = showPremium ? 833 : 650;
             let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1150" height="580" viewBox="25 25 1150 580" style="margin: auto; position: absolute; top: 0; left: 0; right: 0; bottom: 0;">
@@ -737,7 +1071,7 @@ export default {
 <text x="${rightX}" y="240" font-size="22" font-weight="600" dominant-baseline="central">${ra.toFixed(3)} ${rc}${cycleText}</text>
 ${rc !== tc ? `<text x="${rightX}" y="270" font-size="14" opacity="0.6">≈ ${(ra * er).toFixed(3)} ${tc}${cycleText}</text>` : ''}
 <text x="${rightX}" y="310" font-size="14" opacity="0.4">剩余天数</text>
-<text x="${rightX}" y="340" font-size="22" font-weight="600" dominant-baseline="central">${remainDays} / ${pd} 天</text>
+<text x="${rightX}" y="340" font-size="22" font-weight="600" dominant-baseline="central">${remainDays} / ${totalCycleDays} 天</text>
 <text x="${rightX}" y="390" font-size="14" opacity="0.4">到期时间</text>
 <text x="${rightX}" y="420" font-size="22" font-weight="600" dominant-baseline="central">${ed}</text>
 </g>

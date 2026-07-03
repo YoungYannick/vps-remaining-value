@@ -114,7 +114,28 @@ app.get('/api/rates', async (req, res) => {
             } catch (e) {}
         }
     }
-    res.status(500).json({ error: "Failed" });
+    const fallbackRates = {
+        "USD": 1,
+        "CNY": 6.78,
+        "EUR": 0.87,
+        "GBP": 0.75,
+        "HKD": 7.84,
+        "JPY": 160.80,
+        "TWD": 31.93,
+        "AUD": 1.44,
+        "CAD": 1.42,
+        "RUB": 77.24,
+        "INR": 95.30
+    };
+    ratesCache = {
+        source: '离线备用汇率',
+        rates: fallbackRates,
+        cachedAt: Date.now()
+    };
+    return res.json({
+        source: ratesCache.source,
+        rates: ratesCache.rates
+    });
 });
 app.get('/svg', (req, res) => {
     const ra = parseFloat(req.query.ra) || 0;
@@ -125,6 +146,7 @@ app.get('/svg', (req, res) => {
     const tc = req.query.tc || 'CNY';
     const er = parseFloat(req.query.er) || 1;
     const ta = (req.query.ta !== undefined && req.query.ta !== '') ? parseFloat(req.query.ta) : null;
+    const cm = req.query.cm || 'fixed';
     if (!ed) {
         res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
         return res.send(`<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="530" viewBox="50 50 1100 530" style="margin: auto; position: absolute; top: 0; left: 0; right: 0; bottom: 0;"><rect x="50" y="50" width="1100" height="530" rx="20" fill="#0d0d12"/><text x="600" y="315" fill="#ebd288" font-size="24" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif"></text></svg>`);
@@ -133,7 +155,23 @@ app.get('/svg', (req, res) => {
     const transMs = new Date(td).getTime();
     const remainMs = Math.max(0, endMs - transMs);
     const remainDays = Math.ceil(remainMs / (1000 * 60 * 60 * 24));
-    const remainingValueBase = (ra / pd) * remainDays;
+    let totalCycleDays = pd;
+    if (cm === 'real') {
+        const d = new Date(ed);
+        const day = d.getDate();
+        if (pd === 30) d.setMonth(d.getMonth() - 1);
+        else if (pd === 90) d.setMonth(d.getMonth() - 3);
+        else if (pd === 180) d.setMonth(d.getMonth() - 6);
+        else if (pd === 365) d.setFullYear(d.getFullYear() - 1);
+        else if (pd === 730) d.setFullYear(d.getFullYear() - 2);
+        else if (pd === 1095) d.setFullYear(d.getFullYear() - 3);
+        else if (pd === 1825) d.setFullYear(d.getFullYear() - 5);
+        if ((pd === 30 || pd === 90 || pd === 180) && d.getDate() !== day) {
+            d.setDate(0);
+        }
+        totalCycleDays = Math.round((endMs - d.getTime()) / (1000 * 60 * 60 * 24));
+    }
+    const remainingValueBase = (ra / totalCycleDays) * remainDays;
     const remainingValueTarget = remainingValueBase * er;
     let showPremium = ta !== null;
     let premiumAmount = 0;
@@ -154,7 +192,7 @@ app.get('/svg', (req, res) => {
     else if (pd === 1825) cycleText = '/五年';
     else cycleText = `/${pd}天`;
 
-    const pct = Math.max(0, (remainDays / pd) * 100);
+    const pct = Math.max(0, (remainDays / totalCycleDays) * 100);
     const barPct = Math.min(100, pct);
     const rightX = showPremium ? 833 : 650;
     let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1150" height="580" viewBox="25 25 1150 580" style="margin: auto; position: absolute; top: 0; left: 0; right: 0; bottom: 0;">
@@ -247,7 +285,7 @@ app.get('/svg', (req, res) => {
 <text x="${rightX}" y="240" font-size="22" font-weight="600" dominant-baseline="central">${ra.toFixed(3)} ${rc}${cycleText}</text>
 ${rc !== tc ? `<text x="${rightX}" y="270" font-size="14" opacity="0.6">≈ ${(ra * er).toFixed(3)} ${tc}${cycleText}</text>` : ''}
 <text x="${rightX}" y="310" font-size="14" opacity="0.4">剩余天数</text>
-<text x="${rightX}" y="340" font-size="22" font-weight="600" dominant-baseline="central">${remainDays} / ${pd} 天</text>
+<text x="${rightX}" y="340" font-size="22" font-weight="600" dominant-baseline="central">${remainDays} / ${totalCycleDays} 天</text>
 <text x="${rightX}" y="390" font-size="14" opacity="0.4">到期时间</text>
 <text x="${rightX}" y="420" font-size="22" font-weight="600" dominant-baseline="central">${ed}</text>
 </g>
