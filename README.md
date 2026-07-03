@@ -31,7 +31,7 @@ docker run -d -p 45867:45867 -e SECRET_KEY="YourCustomSecretKeyHere" -e V6_API_K
 
 ---
 
-## Cloud Flare Worker 版本
+## CloudFlare Worker 版本
 
 [vps-remaining-value-worker](vps-remaining-value-worker.js)
 
