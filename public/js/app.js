@@ -1,4 +1,4 @@
-const els = ['ra', 'rc', 'pd', 'cm', 'ed', 'td', 'dr', 'pa', 'ta', 'tc'].reduce((acc, id) => {
+const els = ['ra', 'rc', 'pd', 'cm', 'ed', 'td', 'dr', 'pa', 'ta', 'tc', 'eom'].reduce((acc, id) => {
     acc[id] = document.getElementById(id);
     return acc;
 }, {});
@@ -13,6 +13,33 @@ const statusMsg = document.getElementById('status-msg');
 const rateDisplay = document.getElementById('rate-display');
 let exchangeRates = {};
 let currentRate = 1.0000;
+let lastTxField = 'ta';
+
+function syncTransactionFields() {
+    const rv = calculateRV();
+    if (rv <= 0) return;
+
+    if (lastTxField === 'dr' && els.dr.value !== '') {
+        let drVal = parseFloat(els.dr.value);
+        if (isNaN(drVal)) return;
+        if (drVal > 1 && drVal <= 10) drVal = drVal / 10;
+        else if (drVal > 10) drVal = drVal / 100;
+        const targetTa = rv * drVal;
+        els.ta.value = targetTa.toFixed(3);
+        els.pa.value = (targetTa - rv).toFixed(3);
+    } else if (lastTxField === 'pa' && els.pa.value !== '') {
+        const paVal = parseFloat(els.pa.value);
+        if (isNaN(paVal)) return;
+        const targetTa = rv + paVal;
+        els.ta.value = Math.max(0, targetTa).toFixed(3);
+        els.dr.value = (targetTa / rv).toFixed(3);
+    } else if (lastTxField === 'ta' && els.ta.value !== '') {
+        const taVal = parseFloat(els.ta.value);
+        if (isNaN(taVal)) return;
+        els.dr.value = (taVal / rv).toFixed(3);
+        els.pa.value = (taVal - rv).toFixed(3);
+    }
+}
 async function fetchRates() {
     try {
         const res = await fetch('/api/rates');
@@ -54,6 +81,7 @@ function update() {
         statusMsg.style.display = 'block';
         return;
     }
+    syncTransactionFields();
     statusMsg.style.display = 'none';
     img.style.display = 'block';
     img.src = getUrl();
@@ -80,56 +108,36 @@ function calculateRV() {
         if ((pd === 30 || pd === 90 || pd === 180) && d.getDate() !== day) {
             d.setDate(0);
         }
+        if (els.eom && els.eom.value === 'eom' && (pd === 30 || pd === 90 || pd === 180)) {
+            d.setFullYear(d.getFullYear(), d.getMonth() + 1, 0);
+        }
         totalCycleDays = Math.round((endMs - d.getTime()) / (1000 * 60 * 60 * 24));
     }
     return (ra / totalCycleDays) * remainDays * currentRate;
 }
 els.dr.addEventListener('input', (e) => {
+    lastTxField = 'dr';
     if (e.target.value === '') {
         els.ta.value = '';
         els.pa.value = '';
-        update();
-        return;
     }
-    const rv = calculateRV();
-    if (rv > 0) {
-        let drVal = parseFloat(e.target.value);
-        if (isNaN(drVal)) return;
-        if (drVal > 1 && drVal <= 10) drVal = drVal / 10;
-        else if (drVal > 10) drVal = drVal / 100;
-        const targetTa = rv * drVal;
-        els.ta.value = targetTa.toFixed(3);
-        els.pa.value = (targetTa - rv).toFixed(3);
-        update();
-    }
+    update();
 });
 els.pa.addEventListener('input', (e) => {
+    lastTxField = 'pa';
     if (e.target.value === '') {
         els.ta.value = '';
         els.dr.value = '';
-        update();
-        return;
     }
-    const rv = calculateRV();
-    if (rv > 0) {
-        const paVal = parseFloat(e.target.value);
-        if (isNaN(paVal)) return;
-        const targetTa = rv + paVal;
-        els.ta.value = Math.max(0, targetTa).toFixed(3);
-        els.dr.value = (targetTa / rv).toFixed(3);
-        update();
-    }
+    update();
 });
 els.ta.addEventListener('input', (e) => {
-    const rv = calculateRV();
-    if (rv > 0 && e.target.value !== '') {
-        const taVal = parseFloat(e.target.value);
-        els.dr.value = (taVal / rv).toFixed(3);
-        els.pa.value = (taVal - rv).toFixed(3);
-    } else {
+    lastTxField = 'ta';
+    if (e.target.value === '') {
         els.dr.value = '';
         els.pa.value = '';
     }
+    update();
 });
 Object.values(els).forEach(el => {
     el.addEventListener('input', update);
@@ -226,6 +234,9 @@ document.getElementById('reset-btn').addEventListener('click', (e) => {
     els.rc.value = 'USD';
     els.pd.value = '365';
     els.cm.value = 'real';
+    els.eom.value = 'exact';
+    document.getElementById('eom-group').style.display = 'none';
+    initEomCapsule();
     initCapsule();
     const d = new Date();
     const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
@@ -259,7 +270,44 @@ cmBtns.forEach(btn => {
         const val = btn.dataset.value;
         cmInput.value = val;
         initCapsule();
+        checkEomVisibility();
         update();
     });
 });
 initCapsule();
+const eomSwitch = document.getElementById('eom-switch');
+const eomBtns = document.querySelectorAll('.eom-btn');
+const eomInput = document.getElementById('eom');
+const eomGroup = document.getElementById('eom-group');
+function initEomCapsule() {
+    const val = eomInput.value || 'exact';
+    eomBtns.forEach(b => b.classList.remove('active'));
+    document.querySelector(`.eom-btn[data-value="${val}"]`)?.classList.add('active');
+    if (val === 'exact') {
+        eomSwitch.classList.add('is-exact');
+    } else {
+        eomSwitch.classList.remove('is-exact');
+    }
+}
+eomBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        eomInput.value = btn.dataset.value;
+        initEomCapsule();
+        update();
+    });
+});
+function checkEomVisibility() {
+    if (!els.ed.value) return;
+    const d = new Date(els.ed.value);
+    const nextDay = new Date(d.getTime() + 24 * 60 * 60 * 1000);
+    if (cmInput.value === 'real' && nextDay.getDate() === 1) {
+        eomGroup.style.display = 'flex';
+    } else {
+        eomGroup.style.display = 'none';
+        eomInput.value = 'exact';
+        initEomCapsule();
+    }
+}
+els.ed.addEventListener('change', checkEomVisibility);
+checkEomVisibility();
+initEomCapsule();

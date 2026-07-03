@@ -147,6 +147,7 @@ app.get('/svg', (req, res) => {
     const er = parseFloat(req.query.er) || 1;
     const ta = (req.query.ta !== undefined && req.query.ta !== '') ? parseFloat(req.query.ta) : null;
     const cm = req.query.cm || 'fixed';
+    const eom = req.query.eom || 'exact';
     if (!ed) {
         res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
         return res.send(`<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="530" viewBox="50 50 1100 530" style="margin: auto; position: absolute; top: 0; left: 0; right: 0; bottom: 0;"><rect x="50" y="50" width="1100" height="530" rx="20" fill="#0d0d12"/><text x="600" y="315" fill="#ebd288" font-size="24" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif"></text></svg>`);
@@ -168,6 +169,9 @@ app.get('/svg', (req, res) => {
         else if (pd === 1825) d.setFullYear(d.getFullYear() - 5);
         if ((pd === 30 || pd === 90 || pd === 180) && d.getDate() !== day) {
             d.setDate(0);
+        }
+        if (eom === 'eom' && (pd === 30 || pd === 90 || pd === 180)) {
+            d.setFullYear(d.getFullYear(), d.getMonth() + 1, 0);
         }
         totalCycleDays = Math.round((endMs - d.getTime()) / (1000 * 60 * 60 * 24));
     }

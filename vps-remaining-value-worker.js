@@ -21,6 +21,8 @@ const htmlContent = `<!DOCTYPE html>
         padding: 0;
         background: var(--bg);
         background-image: radial-gradient(circle at 50% 0%, #1a1a24 0%, var(--bg) 60%);
+        background-repeat: no-repeat;
+        background-attachment: fixed;
         color: var(--text);
         font-family: var(--font);
         display: flex;
@@ -155,6 +157,9 @@ const htmlContent = `<!DOCTYPE html>
     .input-group {
         display: flex;
         flex-direction: column;
+    }
+    .emo-group {
+        display: none;
     }
     label {
         margin-bottom: 8px;
@@ -305,13 +310,13 @@ const htmlContent = `<!DOCTYPE html>
         animation: spin 1s linear infinite;
     }
     @keyframes spin { 100% { transform: rotate(360deg); } }
-    .cm-header {
+    .cm-header, .eom-header, .field-header {
         display: flex;
         align-items: center;
         gap: 6px;
         margin-bottom: 8px;
     }
-    .cm-header label { margin-bottom: 0; }
+    .cm-header label, .eom-header label, .field-header label { margin-bottom: 0; }
     .tooltip-container {
         position: relative;
         display: flex;
@@ -353,7 +358,7 @@ const htmlContent = `<!DOCTYPE html>
         height: 44px;
         box-sizing: border-box;
     }
-    .cm-btn {
+    .cm-btn, .eom-btn {
         flex: 1;
         background: transparent;
         color: var(--text-muted);
@@ -368,8 +373,8 @@ const htmlContent = `<!DOCTYPE html>
         box-shadow: none;
         min-width: auto;
     }
-    .cm-btn.active { color: #000; }
-    .cm-btn:hover {
+    .cm-btn.active, .eom-btn.active { color: #000; }
+    .cm-btn:hover, .eom-btn:hover {
         transform: none;
         box-shadow: none;
         background: transparent;
@@ -388,13 +393,27 @@ const htmlContent = `<!DOCTYPE html>
     .capsule-switch.is-real .capsule-bg {
         left: 50%;
     }
+    .capsule-switch.is-exact .capsule-bg {
+        left: 50%;
+    }
     @media (max-width: 1200px) {
+        body { align-items: flex-start; }
         .layout { flex-direction: column; }
-        .display { min-height: 400px; }
+        .panel { min-width: 0; }
+        .display { min-width: 0; min-height: 400px; }
     }
     @media (max-width: 600px) {
-        .form-grid { grid-template-columns: 1fr; }
-        .layout-wrapper { padding: 20px; }
+        .layout-wrapper { padding: 12px; max-width: 100%; }
+        .panel { padding: 20px; }
+        .header { font-size: 20px; margin-bottom: 20px; }
+        .form-grid { grid-template-columns: 1fr; gap: 16px; }
+        .display { min-height: 260px; border-radius: 12px; }
+        .btn-group { gap: 12px; margin-top: 24px; }
+        button { min-width: calc(50% - 6px); padding: 12px 16px; }
+        .tooltip { white-space: normal; width: max-content; max-width: 200px; text-align: center; }
+    }
+    @media (max-width: 380px) {
+        button { min-width: 100%; }
     }
   </style>
 </head>
@@ -473,6 +492,21 @@ const htmlContent = `<!DOCTYPE html>
           <label>到期时间</label>
           <input type="date" id="ed">
         </div>
+        <div class="input-group emo-group" id="eom-group">
+          <div class="eom-header">
+            <label>起始日推算</label>
+            <div class="help-icon tooltip-container">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+              <div class="tooltip">当到期日为月末时，购买日可能是上个月的对应日或月末<br>例如2月28日到期，购买日可能是1月28日或1月31日</div>
+            </div>
+          </div>
+          <div class="capsule-switch is-exact" id="eom-switch">
+            <div class="capsule-bg"></div>
+            <button type="button" class="eom-btn" data-value="eom">月末</button>
+            <button type="button" class="eom-btn active" data-value="exact">对日</button>
+            <input type="hidden" id="eom" value="exact">
+          </div>
+        </div>
       </div>
 
       <div class="section-title section-mt">交易信息</div>
@@ -498,15 +532,34 @@ const htmlContent = `<!DOCTYPE html>
           </select>
         </div>
         <div class="input-group">
-          <label>交易金额 (可选)</label>
+          <div class="field-header">
+            <label>交易金额</label>
+            <div class="help-icon tooltip-container">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+              <div class="tooltip">可选</div>
+            </div>
+          </div>
+
           <input type="number" id="ta" step="0.01">
         </div>
         <div class="input-group">
-          <label>溢价金额 (可选, 负数表示折价)</label>
+          <div class="field-header">
+            <label>溢价金额</label>
+            <div class="help-icon tooltip-container">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+              <div class="tooltip">可选<br>正数表示溢价，负数表示折价</div>
+            </div>
+          </div>
           <input type="number" id="pa" step="0.01">
         </div>
         <div class="input-group">
-          <label>交易折扣 (可选, 如: 0.88 / 8.8 / 88)</label>
+          <div class="field-header">
+            <label>交易折扣</label>
+            <div class="help-icon tooltip-container">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+              <div class="tooltip">可选<br>支持多种输入格式，如：0.88 / 8.8 / 88</div>
+            </div>
+          </div>
           <input type="number" id="dr" step="0.01">
         </div>
       </div>
@@ -519,12 +572,12 @@ const htmlContent = `<!DOCTYPE html>
     </div>
     <div class="display">
       <div id="status-msg" class="placeholder-msg">请填写完整的参数以生成预览</div>
-       <img id="preview" src="">
+      <img id="preview" src="">
     </div>
   </div>
 </div>
 <script>
-const els = ['ra', 'rc', 'pd', 'cm', 'ed', 'td', 'dr', 'pa', 'ta', 'tc'].reduce((acc, id) => {
+const els = ['ra', 'rc', 'pd', 'cm', 'ed', 'td', 'dr', 'pa', 'ta', 'tc', 'eom'].reduce((acc, id) => {
     acc[id] = document.getElementById(id);
     return acc;
 }, {});
@@ -539,6 +592,33 @@ const statusMsg = document.getElementById('status-msg');
 const rateDisplay = document.getElementById('rate-display');
 let exchangeRates = {};
 let currentRate = 1.0000;
+let lastTxField = 'ta';
+
+function syncTransactionFields() {
+    const rv = calculateRV();
+    if (rv <= 0) return;
+
+    if (lastTxField === 'dr' && els.dr.value !== '') {
+        let drVal = parseFloat(els.dr.value);
+        if (isNaN(drVal)) return;
+        if (drVal > 1 && drVal <= 10) drVal = drVal / 10;
+        else if (drVal > 10) drVal = drVal / 100;
+        const targetTa = rv * drVal;
+        els.ta.value = targetTa.toFixed(3);
+        els.pa.value = (targetTa - rv).toFixed(3);
+    } else if (lastTxField === 'pa' && els.pa.value !== '') {
+        const paVal = parseFloat(els.pa.value);
+        if (isNaN(paVal)) return;
+        const targetTa = rv + paVal;
+        els.ta.value = Math.max(0, targetTa).toFixed(3);
+        els.dr.value = (targetTa / rv).toFixed(3);
+    } else if (lastTxField === 'ta' && els.ta.value !== '') {
+        const taVal = parseFloat(els.ta.value);
+        if (isNaN(taVal)) return;
+        els.dr.value = (taVal / rv).toFixed(3);
+        els.pa.value = (taVal - rv).toFixed(3);
+    }
+}
 async function fetchRates() {
     try {
         const res = await fetch('/api/rates');
@@ -580,6 +660,7 @@ function update() {
         statusMsg.style.display = 'block';
         return;
     }
+    syncTransactionFields();
     statusMsg.style.display = 'none';
     img.style.display = 'block';
     img.src = getUrl();
@@ -606,56 +687,36 @@ function calculateRV() {
         if ((pd === 30 || pd === 90 || pd === 180) && d.getDate() !== day) {
             d.setDate(0);
         }
+        if (els.eom && els.eom.value === 'eom' && (pd === 30 || pd === 90 || pd === 180)) {
+            d.setFullYear(d.getFullYear(), d.getMonth() + 1, 0);
+        }
         totalCycleDays = Math.round((endMs - d.getTime()) / (1000 * 60 * 60 * 24));
     }
     return (ra / totalCycleDays) * remainDays * currentRate;
 }
 els.dr.addEventListener('input', (e) => {
+    lastTxField = 'dr';
     if (e.target.value === '') {
         els.ta.value = '';
         els.pa.value = '';
-        update();
-        return;
     }
-    const rv = calculateRV();
-    if (rv > 0) {
-        let drVal = parseFloat(e.target.value);
-        if (isNaN(drVal)) return;
-        if (drVal > 1 && drVal <= 10) drVal = drVal / 10;
-        else if (drVal > 10) drVal = drVal / 100;
-        const targetTa = rv * drVal;
-        els.ta.value = targetTa.toFixed(3);
-        els.pa.value = (targetTa - rv).toFixed(3);
-        update();
-    }
+    update();
 });
 els.pa.addEventListener('input', (e) => {
+    lastTxField = 'pa';
     if (e.target.value === '') {
         els.ta.value = '';
         els.dr.value = '';
-        update();
-        return;
     }
-    const rv = calculateRV();
-    if (rv > 0) {
-        const paVal = parseFloat(e.target.value);
-        if (isNaN(paVal)) return;
-        const targetTa = rv + paVal;
-        els.ta.value = Math.max(0, targetTa).toFixed(3);
-        els.dr.value = (targetTa / rv).toFixed(3);
-        update();
-    }
+    update();
 });
 els.ta.addEventListener('input', (e) => {
-    const rv = calculateRV();
-    if (rv > 0 && e.target.value !== '') {
-        const taVal = parseFloat(e.target.value);
-        els.dr.value = (taVal / rv).toFixed(3);
-        els.pa.value = (taVal - rv).toFixed(3);
-    } else {
+    lastTxField = 'ta';
+    if (e.target.value === '') {
         els.dr.value = '';
         els.pa.value = '';
     }
+    update();
 });
 Object.values(els).forEach(el => {
     el.addEventListener('input', update);
@@ -752,6 +813,9 @@ document.getElementById('reset-btn').addEventListener('click', (e) => {
     els.rc.value = 'USD';
     els.pd.value = '365';
     els.cm.value = 'real';
+    els.eom.value = 'exact';
+    document.getElementById('eom-group').style.display = 'none';
+    initEomCapsule();
     initCapsule();
     const d = new Date();
     const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
@@ -785,10 +849,47 @@ cmBtns.forEach(btn => {
         const val = btn.dataset.value;
         cmInput.value = val;
         initCapsule();
+        checkEomVisibility();
         update();
     });
 });
 initCapsule();
+const eomSwitch = document.getElementById('eom-switch');
+const eomBtns = document.querySelectorAll('.eom-btn');
+const eomInput = document.getElementById('eom');
+const eomGroup = document.getElementById('eom-group');
+function initEomCapsule() {
+    const val = eomInput.value || 'exact';
+    eomBtns.forEach(b => b.classList.remove('active'));
+    document.querySelector(\`.eom-btn[data-value="${val}"]\`)?.classList.add('active');
+    if (val === 'exact') {
+        eomSwitch.classList.add('is-exact');
+    } else {
+        eomSwitch.classList.remove('is-exact');
+    }
+}
+eomBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        eomInput.value = btn.dataset.value;
+        initEomCapsule();
+        update();
+    });
+});
+function checkEomVisibility() {
+    if (!els.ed.value) return;
+    const d = new Date(els.ed.value);
+    const nextDay = new Date(d.getTime() + 24 * 60 * 60 * 1000);
+    if (cmInput.value === 'real' && nextDay.getDate() === 1) {
+        eomGroup.style.display = 'flex';
+    } else {
+        eomGroup.style.display = 'none';
+        eomInput.value = 'exact';
+        initEomCapsule();
+    }
+}
+els.ed.addEventListener('change', checkEomVisibility);
+checkEomVisibility();
+initEomCapsule();
 </script>
 </body>
 </html>`;
@@ -930,6 +1031,7 @@ export default {
             const taParam = searchParams.get('ta');
             const ta = (taParam !== null && taParam !== '') ? parseFloat(taParam) : null;
             const cm = searchParams.get('cm') || 'fixed';
+            const eom = searchParams.get('eom') || 'exact';
 
             if (!ed) {
                 return new Response(`<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="530" viewBox="50 50 1100 530" style="margin: auto; position: absolute; top: 0; left: 0; right: 0; bottom: 0;"><rect x="50" y="50" width="1100" height="530" rx="20" fill="#0d0d12"/><text x="600" y="315" fill="#ebd288" font-size="24" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif"></text></svg>`, {
@@ -954,6 +1056,9 @@ export default {
                 else if (pd === 1825) d.setFullYear(d.getFullYear() - 5);
                 if ((pd === 30 || pd === 90 || pd === 180) && d.getDate() !== day) {
                     d.setDate(0);
+                }
+                if (eom === 'eom' && (pd === 30 || pd === 90 || pd === 180)) {
+                    d.setFullYear(d.getFullYear(), d.getMonth() + 1, 0);
                 }
                 totalCycleDays = Math.round((endMs - d.getTime()) / (1000 * 60 * 60 * 24));
             }

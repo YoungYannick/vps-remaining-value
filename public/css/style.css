@@ -14,6 +14,8 @@ body {
     padding: 0;
     background: var(--bg);
     background-image: radial-gradient(circle at 50% 0%, #1a1a24 0%, var(--bg) 60%);
+    background-repeat: no-repeat;
+    background-attachment: fixed;
     color: var(--text);
     font-family: var(--font);
     display: flex;
@@ -148,6 +150,9 @@ html {
 .input-group {
     display: flex;
     flex-direction: column;
+}
+.emo-group {
+    display: none;
 }
 label {
     margin-bottom: 8px;
@@ -298,13 +303,13 @@ button.alt-btn:hover {
     animation: spin 1s linear infinite;
 }
 @keyframes spin { 100% { transform: rotate(360deg); } }
-.cm-header {
+.cm-header, .eom-header, .field-header {
     display: flex;
     align-items: center;
     gap: 6px;
     margin-bottom: 8px;
 }
-.cm-header label { margin-bottom: 0; }
+.cm-header label, .eom-header label, .field-header label { margin-bottom: 0; }
 .tooltip-container {
     position: relative;
     display: flex;
@@ -346,7 +351,7 @@ button.alt-btn:hover {
     height: 44px;
     box-sizing: border-box;
 }
-.cm-btn {
+.cm-btn, .eom-btn {
     flex: 1;
     background: transparent;
     color: var(--text-muted);
@@ -361,8 +366,8 @@ button.alt-btn:hover {
     box-shadow: none;
     min-width: auto;
 }
-.cm-btn.active { color: #000; }
-.cm-btn:hover {
+.cm-btn.active, .eom-btn.active { color: #000; }
+.cm-btn:hover, .eom-btn:hover {
     transform: none;
     box-shadow: none;
     background: transparent;
@@ -381,11 +386,25 @@ button.alt-btn:hover {
 .capsule-switch.is-real .capsule-bg {
     left: 50%;
 }
+.capsule-switch.is-exact .capsule-bg {
+    left: 50%;
+}
 @media (max-width: 1200px) {
+    body { align-items: flex-start; }
     .layout { flex-direction: column; }
-    .display { min-height: 400px; }
+    .panel { min-width: 0; }
+    .display { min-width: 0; min-height: 400px; }
 }
 @media (max-width: 600px) {
-    .form-grid { grid-template-columns: 1fr; }
-    .layout-wrapper { padding: 20px; }
+    .layout-wrapper { padding: 12px; max-width: 100%; }
+    .panel { padding: 20px; }
+    .header { font-size: 20px; margin-bottom: 20px; }
+    .form-grid { grid-template-columns: 1fr; gap: 16px; }
+    .display { min-height: 260px; border-radius: 12px; }
+    .btn-group { gap: 12px; margin-top: 24px; }
+    button { min-width: calc(50% - 6px); padding: 12px 16px; }
+    .tooltip { white-space: normal; width: max-content; max-width: 200px; text-align: center; }
+}
+@media (max-width: 380px) {
+    button { min-width: 100%; }
 }

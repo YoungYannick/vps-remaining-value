@@ -1,4 +1,5 @@
-<!DOCTYPE html>
+<script setup>
+</script><!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -82,6 +83,21 @@
           <label>到期时间</label>
           <input type="date" id="ed">
         </div>
+        <div class="input-group emo-group" id="eom-group">
+          <div class="eom-header">
+            <label>起始日推算</label>
+            <div class="help-icon tooltip-container">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+              <div class="tooltip">当到期日为月末时，购买日可能是上个月的对应日或月末<br>例如2月28日到期，购买日可能是1月28日或1月31日</div>
+            </div>
+          </div>
+          <div class="capsule-switch is-exact" id="eom-switch">
+            <div class="capsule-bg"></div>
+            <button type="button" class="eom-btn" data-value="eom">月末</button>
+            <button type="button" class="eom-btn active" data-value="exact">对日</button>
+            <input type="hidden" id="eom" value="exact">
+          </div>
+        </div>
       </div>
 
       <div class="section-title section-mt">交易信息</div>
@@ -107,15 +123,34 @@
           </select>
         </div>
         <div class="input-group">
-          <label>交易金额 (可选)</label>
+          <div class="field-header">
+            <label>交易金额</label>
+            <div class="help-icon tooltip-container">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+              <div class="tooltip">可选</div>
+            </div>
+          </div>
+
           <input type="number" id="ta" step="0.01">
         </div>
         <div class="input-group">
-          <label>溢价金额 (可选, 负数表示折价)</label>
+          <div class="field-header">
+            <label>溢价金额</label>
+            <div class="help-icon tooltip-container">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+              <div class="tooltip">可选<br>正数表示溢价，负数表示折价</div>
+            </div>
+          </div>
           <input type="number" id="pa" step="0.01">
         </div>
         <div class="input-group">
-          <label>交易折扣 (可选, 如: 0.88 / 8.8 / 88)</label>
+          <div class="field-header">
+            <label>交易折扣</label>
+            <div class="help-icon tooltip-container">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+              <div class="tooltip">可选<br>支持多种输入格式，如：0.88 / 8.8 / 88</div>
+            </div>
+          </div>
           <input type="number" id="dr" step="0.01">
         </div>
       </div>
