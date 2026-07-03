@@ -66,8 +66,12 @@ app.get('/api/rates', async (req, res) => {
     const expectedSign = crypto.createHmac('sha256', SECRET_KEY).update(t + ip).digest('hex');
     if (sign !== expectedSign) return res.status(403).json({ error: "Invalid" });
     if (ratesCache && Date.now() < ratesCacheTime) {
+        const ageMs = Date.now() - ratesCache.cachedAt;
+        const ageMins = Math.floor(ageMs / 60000);
+        const ageSecs = Math.floor((ageMs % 60000) / 1000);
+        const timeStr = ageMins > 0 ? `${ageMins}分${ageSecs}秒前` : `${ageSecs}秒前`;
         return res.json({
-            source: `${ratesCache.source} (缓存)`,
+            source: `${ratesCache.source} (缓存于 ${timeStr})`,
             rates: ratesCache.rates
         });
     }
@@ -90,10 +94,11 @@ app.get('/api/rates', async (req, res) => {
             });
             if (!response.ok) continue;
             const data = await response.json();
-            if (data.rates || data.conversion_rates) {
+            if (data.rates) {
                 ratesCache = {
                     source: api.name,
-                    rates: data.rates || data.conversion_rates
+                    rates: data.rates,
+                    cachedAt: Date.now()
                 };
                 ratesCacheTime = Date.now() + api.ttl;
                 return res.json({

@@ -547,8 +547,12 @@ export default {
             const expectedSign = await generateSign(t, clientIp);
             if (sign !== expectedSign) return new Response(JSON.stringify({ error: "Invalid" }), { status: 403 });
             if (ratesCache && Date.now() < ratesCacheTime) {
+                const ageMs = Date.now() - ratesCache.cachedAt;
+                const ageMins = Math.floor(ageMs / 60000);
+                const ageSecs = Math.floor((ageMs % 60000) / 1000);
+                const timeStr = ageMins > 0 ? `${ageMins}分${ageSecs}秒前` : `${ageSecs}秒前`;
                 return new Response(JSON.stringify({
-                    source: `${ratesCache.source} (缓存)`,
+                    source: `${ratesCache.source} (缓存于 ${timeStr})`,
                     rates: ratesCache.rates
                 }), {
                     headers: { 'Content-Type': 'application/json' }
@@ -573,10 +577,11 @@ export default {
                     });
                     if (!res.ok) continue;
                     const data = await res.json();
-                    if (data.rates || data.conversion_rates) {
+                    if (data.rates) {
                         ratesCache = {
                             source: api.name,
-                            rates: data.rates || data.conversion_rates
+                            rates: data.rates,
+                            cachedAt: Date.now()
                         };
                         ratesCacheTime = Date.now() + api.ttl;
                         return new Response(JSON.stringify({
