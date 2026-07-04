@@ -24,12 +24,17 @@ const isValidHost = (urlStr, expectedHost) => {
     }
 };
 app.use((req, res, next) => {
-    const start = Date.now();
     res.on('finish', () => {
-        const ip = getClientIp(req);
-        const d = new Date();
-        const bjTime = new Date(d.getTime() + (d.getTimezoneOffset() * 60000) + 28800000).toISOString().replace('Z', '+08:00');
-        console.log(`[${bjTime}] ${ip} ${req.method} ${req.originalUrl} ${res.statusCode} ${Date.now() - start}ms`);
+        const urlPath = req.originalUrl.split('?')[0];
+        const ext = path.extname(urlPath);
+        const skipExtensions = ['.css', '.js', '.ico'];
+        const isStatic = skipExtensions.includes(ext) || urlPath === '/favicon.ico';
+        if (!isStatic) {
+            const ip = getClientIp(req);
+            const d = new Date();
+            const bjTime = new Date(d.getTime() + (d.getTimezoneOffset() * 60000) + 28800000).toISOString().replace('T', ' ').replace('Z', '');
+            console.log(`[${bjTime}] [${ip}] [${req.method}] [${res.statusCode}] ${req.originalUrl}`);
+        }
     });
     next();
 });
@@ -313,6 +318,12 @@ ${rc !== tc ? `<text x="${rightX}" y="270" font-size="14" opacity="0.6">≈ ${(r
     res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache');
     res.send(svg);
+});
+app.get('/favicon.ico', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'images', 'favicon.ico'));
+});
+app.use((req, res) => {
+    res.status(404).end();
 });
 app.listen(45867, () => {
     console.log(`[${new Date().toISOString()}] Server is running at http://localhost:45867`);

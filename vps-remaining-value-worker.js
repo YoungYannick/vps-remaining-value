@@ -662,11 +662,16 @@ function update() {
         return;
     }
     syncTransactionFields();
-    statusMsg.style.display = 'none';
-    img.style.display = 'block';
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
-        img.src = getUrl();
+        const targetUrl = getUrl();
+        const tempImg = new Image();
+        tempImg.onload = () => {
+            img.src = targetUrl;
+            statusMsg.style.display = 'none';
+            img.style.display = 'block';
+        };
+        tempImg.src = targetUrl;
     }, 300);
 }
 function calculateRV() {
