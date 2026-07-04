@@ -625,7 +625,7 @@ async function fetchRates() {
         if (!res.ok) throw new Error('API Error');
         const data = await res.json();
         exchangeRates = data.rates;
-        document.getElementById('rate-source').innerText = \`数据来源: ${data.source}\`;
+        document.getElementById('rate-source').innerText = \`数据来源: \${data.source}\`;
         updateRateField();
     } catch (e) {
         document.getElementById('rate-source').innerText = '数据来源: 获取失败';
@@ -637,10 +637,10 @@ function updateRateField() {
     if (exchangeRates[from] && exchangeRates[to]) {
         const rate = exchangeRates[to] / exchangeRates[from];
         currentRate = rate.toFixed(4);
-        rateDisplay.value = \`1 ${from} = ${rate.toFixed(4)} ${to}\`;
+        rateDisplay.value = \`1 \${from} = \${rate.toFixed(4)} \${to}\`;
     } else {
         currentRate = 1.0000;
-        rateDisplay.value = \`1 ${from} = 1 ${to}\`;
+        rateDisplay.value = \`1 \${from} = 1 \${to}\`;
     }
     update();
 }
@@ -652,7 +652,7 @@ function getUrl() {
         }
     }
     params.append('er', typeof currentRate === 'number' ? currentRate.toFixed(4) : parseFloat(currentRate).toFixed(4));
-    return \`/svg?${params.toString()}\`;
+    return \`/svg?\${params.toString()}\`;
 }
 let debounceTimer = null;
 function update() {
@@ -764,7 +764,7 @@ document.getElementById('copy-md-btn').addEventListener('click', (e) => {
     }
     params.append('er', typeof currentRate === 'number' ? currentRate.toFixed(4) : parseFloat(currentRate).toFixed(4));
     const shareUrl = window.location.origin + window.location.pathname + '?' + params.toString();
-    fallbackCopyTextToClipboard(\`[![VPS Remaining Value](${fullUrl})](${shareUrl} "查看工具")\`);
+    fallbackCopyTextToClipboard(\`[![VPS Remaining Value](\${fullUrl})](\${shareUrl} "查看工具")\`);
     tempText(e.target, '已复制 Markdown');
 });
 document.getElementById('copy-link-btn').addEventListener('click', (e) => {
@@ -784,7 +784,7 @@ document.getElementById('download-btn').addEventListener('click', async (e) => {
     const blob = await res.blob();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = \`vps-remaining-value-${els.td.value}.svg\`;
+    a.download = \`vps-remaining-value-\${els.td.value}.svg\`;
     a.click();
     URL.revokeObjectURL(a.href);
     tempText(e.target, '已下载 SVG');
@@ -801,7 +801,7 @@ if (urlParams.has('er')) {
     currentRate = parseFloat(urlParams.get('er')).toFixed(4);
     const from = els.rc.value || 'USD';
     const to = els.tc.value || 'CNY';
-    rateDisplay.value = \`1 ${from} = ${currentRate} ${to}\`;
+    rateDisplay.value = \`1 \${from} = \${currentRate} \${to}\`;
     update();
 } else {
     fetchRates();
@@ -846,7 +846,7 @@ const cmInput = document.getElementById('cm');
 function initCapsule() {
     const val = cmInput.value || 'real';
     cmBtns.forEach(b => b.classList.remove('active'));
-    document.querySelector(\`.cm-btn[data-value="${val}"]\`)?.classList.add('active');
+    document.querySelector(\`.cm-btn[data-value="\${val}"]\`)?.classList.add('active');
     if (val === 'real') {
         cmSwitch.classList.add('is-real');
     } else {
@@ -870,7 +870,7 @@ const eomGroup = document.getElementById('eom-group');
 function initEomCapsule() {
     const val = eomInput.value || 'exact';
     eomBtns.forEach(b => b.classList.remove('active'));
-    document.querySelector(\`.eom-btn[data-value="${val}"]\`)?.classList.add('active');
+    document.querySelector(\`.eom-btn[data-value="\${val}"]\`)?.classList.add('active');
     if (val === 'exact') {
         eomSwitch.classList.add('is-exact');
     } else {
