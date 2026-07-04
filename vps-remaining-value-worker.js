@@ -654,6 +654,7 @@ function getUrl() {
     params.append('er', typeof currentRate === 'number' ? currentRate.toFixed(4) : parseFloat(currentRate).toFixed(4));
     return \`/svg?${params.toString()}\`;
 }
+let debounceTimer = null;
 function update() {
     if (!els.ra.value || !els.pd.value || !els.ed.value) {
         img.style.display = 'none';
@@ -663,7 +664,10 @@ function update() {
     syncTransactionFields();
     statusMsg.style.display = 'none';
     img.style.display = 'block';
-    img.src = getUrl();
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+        img.src = getUrl();
+    }, 300);
 }
 function calculateRV() {
     if (!els.ra.value || !els.pd.value || !els.ed.value || !els.td.value) return 0;
