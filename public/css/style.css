@@ -88,6 +88,15 @@ html {
     justify-content: space-between;
     align-items: center;
 }
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.header-ico {
+    width: 32px;
+    height: 32px;
+}
 .rate-preview {
     position: relative;
     margin-bottom: 24px;
