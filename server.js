@@ -66,18 +66,18 @@ app.use((req, res, next) => {
     next();
 });
 const SCHEMA = [
-    { key: 'ra', type: 'f32' },
+    { key: 'ra', type: 'float' },
     { key: 'rc', type: 'dict', dict: {'AUD': 1, 'CAD': 2, 'CHF': 3, 'CNY': 4, 'EUR': 5, 'GBP': 6, 'HKD': 7, 'INR': 8, 'JPY': 9, 'KRW': 10, 'NZD': 11, 'RUB': 12, 'SGD': 13, 'TWD': 14, 'USD': 15} },
     { key: 'pd', type: 'u16' },
     { key: 'cm', type: 'dict', dict: {'real': 1, 'fixed': 2} },
     { key: 'ed', type: 'date' },
     { key: 'td', type: 'date' },
-    { key: 'dr', type: 'f32' },
-    { key: 'pa', type: 'f32' },
-    { key: 'ta', type: 'f32' },
+    { key: 'dr', type: 'float' },
+    { key: 'pa', type: 'float' },
+    { key: 'ta', type: 'float' },
     { key: 'tc', type: 'dict', dict: {'AUD': 1, 'CAD': 2, 'CHF': 3, 'CNY': 4, 'EUR': 5, 'GBP': 6, 'HKD': 7, 'INR': 8, 'JPY': 9, 'KRW': 10, 'NZD': 11, 'RUB': 12, 'SGD': 13, 'TWD': 14, 'USD': 15} },
     { key: 'eom', type: 'dict', dict: {'exact': 1, 'eom': 2} },
-    { key: 'er', type: 'f32' }
+    { key: 'er', type: 'float' }
 ];
 const daysToDate = (days) => new Date(days * 86400000).toISOString().split('T')[0];
 function decodeBase64Params(base64UrlStr) {
@@ -93,14 +93,30 @@ function decodeBase64Params(base64UrlStr) {
         }
         const view = new DataView(buffer);
         const mask = view.getUint16(0);
+        const hasF64Mask = (mask & 0x8000) !== 0;
+        let f64Mask = 0;
         let offset = 2;
+        let isLegacyF32 = false;
+        if (hasF64Mask) {
+            f64Mask = view.getUint16(offset);
+            offset += 2;
+        } else {
+            const expectedF64Len = SCHEMA.reduce((acc, s, i) => acc + ((mask & (1 << i)) ? (s.type === 'float' ? 8 : s.type === 'dict' ? 1 : 2) : 0), 2);
+            isLegacyF32 = buffer.byteLength !== expectedF64Len;
+        }
         const outParams = {};
         for (let i = 0; i < SCHEMA.length; i++) {
             if ((mask & (1 << i)) !== 0) {
                 const schemaDef = SCHEMA[i];
-                if (schemaDef.type === 'f32') {
-                    outParams[schemaDef.key] = Number(view.getFloat32(offset).toFixed(5)).toString();
-                    offset += 4;
+                if (schemaDef.type === 'float') {
+                    const isF64 = hasF64Mask ? ((f64Mask & (1 << i)) !== 0) : !isLegacyF32;
+                    if (isF64) {
+                        outParams[schemaDef.key] = Number(view.getFloat64(offset).toPrecision(15)).toString();
+                        offset += 8;
+                    } else {
+                        outParams[schemaDef.key] = Number(view.getFloat32(offset).toPrecision(7)).toString();
+                        offset += 4;
+                    }
                 } else if (schemaDef.type === 'u16') {
                     outParams[schemaDef.key] = view.getUint16(offset).toString();
                     offset += 2;
@@ -224,7 +240,7 @@ app.get(/^\/(?:svg|svg([A-Za-z0-9_-]+))$/, (req, res) => {
     const tc = params.tc || 'CNY';
     const er = parseFloat(params.er) || 1;
     const ta = (params.ta !== undefined && params.ta !== '') ? parseFloat(params.ta) : null;
-    const cm = params.cm || 'fixed';
+    const cm = params.cm || 'real';
     const eom = params.eom || 'exact';
     if (!ed) {
         res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
