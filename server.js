@@ -50,7 +50,7 @@ app.use((req, res, next) => {
 });
 app.use(cookieParser(SECRET_KEY));
 app.use((req, res, next) => {
-    if (req.path === '/' || req.path === '/index.html') {
+    if (req.path === '/' || req.path === '/index.html' || req.path.startsWith('/vrv')) {
         const t = Date.now().toString();
         const ip = getClientIp(req);
         const sign = crypto.createHmac('sha256', SECRET_KEY).update(t + ip).digest('hex');
@@ -65,6 +65,61 @@ app.use((req, res, next) => {
     }
     next();
 });
+const SCHEMA = [
+    { key: 'ra', type: 'f32' },
+    { key: 'rc', type: 'dict', dict: {'AUD': 1, 'CAD': 2, 'CHF': 3, 'CNY': 4, 'EUR': 5, 'GBP': 6, 'HKD': 7, 'INR': 8, 'JPY': 9, 'KRW': 10, 'NZD': 11, 'RUB': 12, 'SGD': 13, 'TWD': 14, 'USD': 15} },
+    { key: 'pd', type: 'u16' },
+    { key: 'cm', type: 'dict', dict: {'real': 1, 'fixed': 2} },
+    { key: 'ed', type: 'date' },
+    { key: 'td', type: 'date' },
+    { key: 'dr', type: 'f32' },
+    { key: 'pa', type: 'f32' },
+    { key: 'ta', type: 'f32' },
+    { key: 'tc', type: 'dict', dict: {'AUD': 1, 'CAD': 2, 'CHF': 3, 'CNY': 4, 'EUR': 5, 'GBP': 6, 'HKD': 7, 'INR': 8, 'JPY': 9, 'KRW': 10, 'NZD': 11, 'RUB': 12, 'SGD': 13, 'TWD': 14, 'USD': 15} },
+    { key: 'eom', type: 'dict', dict: {'exact': 1, 'eom': 2} },
+    { key: 'er', type: 'f32' }
+];
+const daysToDate = (days) => new Date(days * 86400000).toISOString().split('T')[0];
+function decodeBase64Params(base64UrlStr) {
+    if (!base64UrlStr) return {};
+    let b64 = base64UrlStr.replace(/-/g, '+').replace(/_/g, '/');
+    while (b64.length % 4) b64 += '=';
+    try {
+        const binaryStr = Buffer.from(b64, 'base64').toString('binary');
+        const buffer = new ArrayBuffer(binaryStr.length);
+        const uint8Array = new Uint8Array(buffer);
+        for (let i = 0; i < binaryStr.length; i++) {
+            uint8Array[i] = binaryStr.charCodeAt(i);
+        }
+        const view = new DataView(buffer);
+        const mask = view.getUint16(0);
+        let offset = 2;
+        const outParams = {};
+        for (let i = 0; i < SCHEMA.length; i++) {
+            if ((mask & (1 << i)) !== 0) {
+                const schemaDef = SCHEMA[i];
+                if (schemaDef.type === 'f32') {
+                    outParams[schemaDef.key] = Number(view.getFloat32(offset).toFixed(5)).toString();
+                    offset += 4;
+                } else if (schemaDef.type === 'u16') {
+                    outParams[schemaDef.key] = view.getUint16(offset).toString();
+                    offset += 2;
+                } else if (schemaDef.type === 'date') {
+                    outParams[schemaDef.key] = daysToDate(view.getUint16(offset));
+                    offset += 2;
+                } else if (schemaDef.type === 'dict') {
+                    const dictVal = view.getUint8(offset);
+                    const reverseDict = Object.fromEntries(Object.entries(schemaDef.dict).map(([k, v]) => [v, k]));
+                    outParams[schemaDef.key] = reverseDict[dictVal] || '';
+                    offset += 1;
+                }
+            }
+        }
+        return outParams;
+    } catch (e) {
+        return {};
+    }
+}
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/api/rates', async (req, res) => {
     const host = req.get('host');
@@ -130,17 +185,21 @@ app.get('/api/rates', async (req, res) => {
         }
     }
     const fallbackRates = {
-        "USD": 1,
-        "CNY": 6.78,
-        "EUR": 0.87,
-        "GBP": 0.75,
-        "HKD": 7.84,
-        "JPY": 160.80,
-        "TWD": 31.93,
         "AUD": 1.44,
         "CAD": 1.42,
-        "RUB": 77.24,
-        "INR": 95.30
+        "CHF": 0.808,
+        "CNY": 6.78,
+        "EUR": 0.876,
+        "GBP": 0.75,
+        "HKD": 7.84,
+        "INR": 95.44,
+        "JPY": 161.80,
+        "KRW": 1502.98,
+        "NZD": 1.73,
+        "RUB": 76.40,
+        "SGD": 1.29,
+        "TWD": 32.08,
+        "USD": 1
     };
     ratesCache = {
         source: '离线备用汇率',
@@ -152,17 +211,21 @@ app.get('/api/rates', async (req, res) => {
         rates: ratesCache.rates
     });
 });
-app.get('/svg', (req, res) => {
-    const ra = parseFloat(req.query.ra) || 0;
-    const rc = req.query.rc || 'USD';
-    const pd = parseInt(req.query.pd) || 365;
-    const ed = req.query.ed;
-    const td = req.query.td || new Date().toISOString().split('T')[0];
-    const tc = req.query.tc || 'CNY';
-    const er = parseFloat(req.query.er) || 1;
-    const ta = (req.query.ta !== undefined && req.query.ta !== '') ? parseFloat(req.query.ta) : null;
-    const cm = req.query.cm || 'fixed';
-    const eom = req.query.eom || 'exact';
+app.get(/^\/(?:svg|svg([A-Za-z0-9_-]+))$/, (req, res) => {
+    let params = req.query;
+    if (req.params[0]) {
+        params = decodeBase64Params(req.params[0]);
+    }
+    const ra = parseFloat(params.ra) || 0;
+    const rc = params.rc || 'USD';
+    const pd = parseInt(params.pd) || 365;
+    const ed = params.ed;
+    const td = params.td || new Date().toISOString().split('T')[0];
+    const tc = params.tc || 'CNY';
+    const er = parseFloat(params.er) || 1;
+    const ta = (params.ta !== undefined && params.ta !== '') ? parseFloat(params.ta) : null;
+    const cm = params.cm || 'fixed';
+    const eom = params.eom || 'exact';
     if (!ed) {
         res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
         return res.send(`<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="530" viewBox="50 50 1100 530" style="margin: auto; position: absolute; top: 0; left: 0; right: 0; bottom: 0;"><rect x="50" y="50" width="1100" height="530" rx="20" fill="#0d0d12"/><text x="600" y="315" fill="#ebd288" font-size="24" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif"></text></svg>`);
@@ -329,6 +392,12 @@ ${rc !== tc ? `<text x="${rightX}" y="270" font-size="14" opacity="0.6">≈ ${(r
     res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache');
     res.send(svg);
+});
+app.get(/^\/vrv([A-Za-z0-9_-]+)$/, (req, res) => {
+    const b64 = req.params[0];
+    const params = decodeBase64Params(b64);
+    const qs = new URLSearchParams(params).toString();
+    res.redirect(`/?${qs}`);
 });
 app.get('/favicon.ico', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'images', 'favicon.ico'));

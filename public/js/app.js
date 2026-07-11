@@ -65,15 +65,76 @@ function updateRateField() {
     }
     update();
 }
-function getUrl() {
-    const params = new URLSearchParams();
-    for (const key in els) {
-        if (els[key].value !== '') {
-            params.append(key, els[key].value);
+const SCHEMA = [
+    { key: 'ra', type: 'f32' },
+    { key: 'rc', type: 'dict', dict: {'AUD': 1, 'CAD': 2, 'CHF': 3, 'CNY': 4, 'EUR': 5, 'GBP': 6, 'HKD': 7, 'INR': 8, 'JPY': 9, 'KRW': 10, 'NZD': 11, 'RUB': 12, 'SGD': 13, 'TWD': 14, 'USD': 15} },
+    { key: 'pd', type: 'u16' },
+    { key: 'cm', type: 'dict', dict: {'real': 1, 'fixed': 2} },
+    { key: 'ed', type: 'date' },
+    { key: 'td', type: 'date' },
+    { key: 'dr', type: 'f32' },
+    { key: 'pa', type: 'f32' },
+    { key: 'ta', type: 'f32' },
+    { key: 'tc', type: 'dict', dict: {'AUD': 1, 'CAD': 2, 'CHF': 3, 'CNY': 4, 'EUR': 5, 'GBP': 6, 'HKD': 7, 'INR': 8, 'JPY': 9, 'KRW': 10, 'NZD': 11, 'RUB': 12, 'SGD': 13, 'TWD': 14, 'USD': 15} },
+    { key: 'eom', type: 'dict', dict: {'exact': 1, 'eom': 2} },
+    { key: 'er', type: 'f32' }
+];
+const dateToDays = (dateStr) => Math.floor(new Date(dateStr).getTime() / 86400000);
+function generateBase64Url(paramsObj) {
+    let mask = 0;
+    let totalBytes = 2;
+    for (let i = 0; i < SCHEMA.length; i++) {
+        if (paramsObj[SCHEMA[i].key] !== undefined && paramsObj[SCHEMA[i].key] !== '') {
+            mask |= (1 << i);
+            if (SCHEMA[i].type === 'f32') totalBytes += 4;
+            if (SCHEMA[i].type === 'u16' || SCHEMA[i].type === 'date') totalBytes += 2;
+            if (SCHEMA[i].type === 'dict') totalBytes += 1;
         }
     }
-    params.append('er', typeof currentRate === 'number' ? currentRate.toFixed(4) : parseFloat(currentRate).toFixed(4));
-    return `/svg?${params.toString()}`;
+    const buffer = new ArrayBuffer(totalBytes);
+    const view = new DataView(buffer);
+    view.setUint16(0, mask);
+    let offset = 2;
+    for (let i = 0; i < SCHEMA.length; i++) {
+        if ((mask & (1 << i)) !== 0) {
+            const val = paramsObj[SCHEMA[i].key];
+            const schemaDef = SCHEMA[i];
+            if (schemaDef.type === 'f32') {
+                view.setFloat32(offset, parseFloat(val));
+                offset += 4;
+            } else if (schemaDef.type === 'u16') {
+                view.setUint16(offset, parseInt(val, 10));
+                offset += 2;
+            } else if (schemaDef.type === 'date') {
+                view.setUint16(offset, dateToDays(val));
+                offset += 2;
+            } else if (schemaDef.type === 'dict') {
+                view.setUint8(offset, schemaDef.dict[val] || 0);
+                offset += 1;
+            }
+        }
+    }
+    const uint8Array = new Uint8Array(buffer);
+    let binaryStr = '';
+    for (let i = 0; i < uint8Array.byteLength; i++) {
+        binaryStr += String.fromCharCode(uint8Array[i]);
+    }
+    return btoa(binaryStr).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function getUrlParamsObj() {
+    const paramsObj = {};
+    for (const key in els) {
+        if (els[key].value !== '') {
+            paramsObj[key] = els[key].value;
+        }
+    }
+    paramsObj['er'] = typeof currentRate === 'number' ? currentRate.toFixed(4) : parseFloat(currentRate).toFixed(4);
+    return paramsObj;
+}
+function getUrl() {
+    const paramsObj = getUrlParamsObj();
+    const b64 = generateBase64Url(paramsObj);
+    return `/svg${b64}`;
 }
 let debounceTimer = null;
 function update() {
@@ -178,25 +239,19 @@ function fallbackCopyTextToClipboard(text) {
 }
 document.getElementById('copy-md-btn').addEventListener('click', (e) => {
     if (!els.ra.value || !els.pd.value || !els.ed.value) return;
-    const fullUrl = window.location.origin + getUrl();
-    const params = new URLSearchParams();
-    for (const key in els) {
-        if (els[key].value !== '') params.append(key, els[key].value);
-    }
-    params.append('er', typeof currentRate === 'number' ? currentRate.toFixed(4) : parseFloat(currentRate).toFixed(4));
-    const shareUrl = window.location.origin + window.location.pathname + '?' + params.toString();
-    fallbackCopyTextToClipboard(`[![VPS Remaining Value](${fullUrl})](${shareUrl} "查看工具")`);
+    const paramsObj = getUrlParamsObj();
+    const b64 = generateBase64Url(paramsObj);
+    const fullUrlShort = window.location.origin + `/svg${b64}`;
+    const shareUrlShort = window.location.origin + `/vrv${b64}`;
+    fallbackCopyTextToClipboard(`[![VPS Remaining Value](${fullUrlShort})](${shareUrlShort} "查看工具")`);
     tempText(e.target, '已复制 Markdown');
 });
 document.getElementById('copy-link-btn').addEventListener('click', (e) => {
     if (!els.ra.value || !els.pd.value || !els.ed.value) return;
-    const params = new URLSearchParams();
-    for (const key in els) {
-        if (els[key].value !== '') params.append(key, els[key].value);
-    }
-    params.append('er', typeof currentRate === 'number' ? currentRate.toFixed(4) : parseFloat(currentRate).toFixed(4));
-    const fullUrl = window.location.origin + window.location.pathname + '?' + params.toString();
-    fallbackCopyTextToClipboard(fullUrl);
+    const paramsObj = getUrlParamsObj();
+    const b64 = generateBase64Url(paramsObj);
+    const shareUrlShort = window.location.origin + `/vrv${b64}`;
+    fallbackCopyTextToClipboard(shareUrlShort);
     tempText(e.target, '已复制分享链接');
 });
 document.getElementById('download-btn').addEventListener('click', async (e) => {

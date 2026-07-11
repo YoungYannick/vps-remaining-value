@@ -28,16 +28,3 @@ docker run -d -p 45867:45867 -e SECRET_KEY="YourCustomSecretKeyHere" -e V6_API_K
 ```bash
 docker run -d -p 45867:45867 -e SECRET_KEY="YourCustomSecretKeyHere" -e V6_API_KEY="YourExchangeRateV6KeyHere" --restart always --name vps-remaining-value ghcr.io/youngyannick/vps-remaining-value:latest
 ```
-
----
-
-## CloudFlare Worker 版本
-
-[vps-remaining-value-worker](vps-remaining-value-worker.js)
-
-### 环境变量
-
-| 参数         | 含义        | 获取来源                                              |
-| ------------ | ----------- | ----------------------------------------------------- |
-| `V6_API_KEY` | 汇率API密钥 | [Exchangerate-api](https://www.exchangerate-api.com/) |
-| `SECRET_KEY` | 密钥        |                                                       |
