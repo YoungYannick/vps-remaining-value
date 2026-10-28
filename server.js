@@ -4,7 +4,7 @@ const fs = require('fs');
 require('dotenv').config();
 let logoBase64 = '';
 try {
-    let logoStr = fs.readFileSync(path.join(__dirname, 'public', 'images', '1.svg'), 'utf-8');
+    let logoStr = fs.readFileSync(path.join(__dirname, 'public', 'images', 'logo.svg'), 'utf-8');
     logoStr = logoStr.replace(/#000000|#000\b|black/gi, '#D4AF37');
     logoBase64 = `data:image/svg+xml;base64,${Buffer.from(logoStr).toString('base64')}`;
 } catch (e) {
@@ -12,6 +12,7 @@ try {
 }
 require('dotenv').config();
 const app = express();
+app.set('trust proxy', true);
 const crypto = require('crypto');
 const cookieParser = require('cookie-parser');
 const SECRET_KEY = process.env.SECRET_KEY;
@@ -136,6 +137,23 @@ function decodeBase64Params(base64UrlStr) {
         return {};
     }
 }
+const indexTemplate = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf-8');
+function getSiteUrl(req) {
+    const host = req.get('host') || '';
+    if (!/^[a-zA-Z0-9.\-:]+$/.test(host)) return '';
+    return `${req.protocol}://${host}`;
+}
+app.get('/', (req, res) => {
+    res.send(indexTemplate.replace(/\{\{siteUrl\}\}/g, getSiteUrl(req)));
+});
+app.get('/robots.txt', (req, res) => {
+    res.type('text/plain');
+    res.send(`User-agent: *\nAllow: /\nDisallow: /api/\n\nSitemap: ${getSiteUrl(req)}/sitemap.xml`);
+});
+app.get('/sitemap.xml', (req, res) => {
+    res.type('application/xml');
+    res.send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url>\n    <loc>${getSiteUrl(req)}/</loc>\n    <changefreq>monthly</changefreq>\n    <priority>1.0</priority>\n  </url>\n</urlset>`);
+});
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/api/rates', async (req, res) => {
     const host = req.get('host');

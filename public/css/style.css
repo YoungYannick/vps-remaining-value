@@ -93,7 +93,7 @@ html {
     align-items: center;
     gap: 10px;
 }
-.header-ico {
+.header-logo {
     width: 32px;
     height: 32px;
 }
@@ -416,4 +416,123 @@ button.alt-btn:hover {
 }
 @media (max-width: 380px) {
     button { min-width: 100%; }
+}
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+.header-action {
+    background: transparent;
+    color: var(--text-muted);
+    border: none;
+    padding: 0;
+    min-width: auto;
+    flex: none;
+    font-size: 14px;
+    font-weight: 400;
+    font-family: var(--font);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    letter-spacing: 0;
+    cursor: pointer;
+    box-shadow: none;
+    transition: color 0.2s;
+}
+.header-action:hover {
+    color: var(--gold);
+    transform: none;
+    background: transparent;
+    box-shadow: none;
+}
+.rate-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 16px;
+    width: min(560px, calc(100vw - 40px));
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    z-index: 100;
+    display: none;
+}
+.rate-modal.is-open {
+    display: block;
+    animation: zoomIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.rate-modal.is-dragging {
+    position: fixed;
+    margin: 0;
+    transform: none;
+}
+.rate-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--panel-border);
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+}
+.rate-modal-header:active {
+    cursor: grabbing;
+}
+.rate-modal-title {
+    color: var(--gold);
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+.rate-modal-close {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: none;
+    min-width: auto;
+    flex: none;
+    touch-action: auto;
+    transition: all 0.2s;
+}
+.rate-modal-close:hover {
+    color: var(--gold);
+    background: rgba(235, 210, 136, 0.1);
+    transform: none;
+    box-shadow: none;
+}
+.rate-modal-body {
+    padding: 20px;
+}
+.rate-exchange-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+.rate-exchange-info {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 14px 0;
+    padding: 8px 12px;
+    background: rgba(235, 210, 136, 0.03);
+    border: 1px solid rgba(235, 210, 136, 0.1);
+    border-radius: 8px;
+    color: var(--gold-dim);
+    font-size: 13px;
+    text-align: center;
+    word-break: break-all;
+}
+@media (max-width: 380px) {
+    .rate-exchange-group {
+        grid-template-columns: 1fr;
+    }
 }

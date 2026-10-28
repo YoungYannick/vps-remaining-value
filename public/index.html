@@ -1,12 +1,41 @@
-<script setup>
-</script><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VPS Remaining Value</title>
+  <title>VPS 剩余价值计算器 | VPS Remaining Value</title>
+  <meta name="description" content="VPS 剩余价值计算器，支持多种付款周期与 15 种货币汇率换算，快速估算 VPS 交易剩余价值，一键生成 SVG 徽章与分享链接。">
+  <meta name="keywords" content="VPS,剩余价值,计算器,汇率,VPS交易,服务器续费,价值评估">
+  <meta name="author" content="Yannick Young">
+  <meta name="robots" content="index, follow">
+  <meta name="theme-color" content="#0d0d12">
+  <link rel="canonical" href="{{siteUrl}}/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="VPS Remaining Value">
+  <meta property="og:locale" content="zh_CN">
+  <meta property="og:url" content="{{siteUrl}}/">
+  <meta property="og:title" content="VPS 剩余价值计算器 | VPS Remaining Value">
+  <meta property="og:description" content="VPS 剩余价值计算器，支持多种付款周期与 15 种货币汇率换算，快速估算 VPS 交易剩余价值，一键生成 SVG 徽章与分享链接。">
+  <meta property="og:image" content="{{siteUrl}}/images/logo-share.png">
+  <meta property="og:image:alt" content="VPS Remaining Value LOGO">
   <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <link rel="apple-touch-icon" href="/images/logo-share.png">
   <link rel="stylesheet" href="./css/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "VPS Remaining Value",
+    "alternateName": "VPS 剩余价值计算器",
+    "url": "{{siteUrl}}/",
+    "description": "VPS 剩余价值计算器，支持多种付款周期与 15 种货币汇率换算，快速估算 VPS 交易剩余价值，一键生成 SVG 徽章与分享链接。",
+    "applicationCategory": "UtilityApplication",
+    "operatingSystem": "Any",
+    "inLanguage": "zh-CN",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "author": { "@type": "Person", "name": "Yannick Young" }
+  }
+  </script>
 </head>
 <body>
 <div class="layout-wrapper">
@@ -14,13 +43,19 @@
     <div class="panel">
       <div class="header">
         <div class="header-left">
-          <img src="/images/favicon.ico" alt="Icon" class="header-ico">
+          <img src="/images/logo.png" alt="Logo" class="header-logo">
           <span>VPS Remaining Value</span>
         </div>
-        <a href="https://github.com/YoungYannick/vps-remaining-value" target="_blank" class="github-link">
-          <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
-          GitHub
-        </a>
+        <div class="header-right">
+          <button id="rate-calc-btn" class="header-action" type="button">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3 4 7l4 4"></path><path d="M4 7h16"></path><path d="m16 21 4-4-4-4"></path><path d="M20 17H4"></path></svg>
+            汇率
+          </button>
+          <a href="https://github.com/YoungYannick/vps-remaining-value" target="_blank" class="github-link">
+            <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
+            GitHub
+          </a>
+        </div>
       </div>
       <div class="rate-preview">
         <div class="rate-header">
@@ -178,6 +213,70 @@
     </div>
   </div>
 </div>
+<div id="rate-modal" class="rate-modal">
+  <div id="rate-modal-header" class="rate-modal-header">
+    <span class="rate-modal-title">汇率计算</span>
+    <button id="rate-modal-close" class="rate-modal-close" type="button" aria-label="关闭">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+    </button>
+  </div>
+  <div class="rate-modal-body">
+    <div class="rate-exchange-group">
+      <div class="input-group">
+        <label>货币</label>
+        <select id="rate-from-currency">
+          <option value="AUD">澳元 (AUD)</option>
+          <option value="CAD">加元 (CAD)</option>
+          <option value="CHF">瑞士法郎 (CHF)</option>
+          <option value="CNY">人民币 (CNY)</option>
+          <option value="EUR">欧元 (EUR)</option>
+          <option value="GBP">英镑 (GBP)</option>
+          <option value="HKD">港币 (HKD)</option>
+          <option value="INR">印度卢比 (INR)</option>
+          <option value="JPY">日元 (JPY)</option>
+          <option value="KRW">韩元 (KRW)</option>
+          <option value="NZD">新西兰元 (NZD)</option>
+          <option value="RUB">俄罗斯卢布 (RUB)</option>
+          <option value="SGD">新加坡元 (SGD)</option>
+          <option value="TWD">新台币 (TWD)</option>
+          <option value="USD" selected>美元 (USD)</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label>金额</label>
+        <input type="number" id="rate-from-amount" step="0.01" value="1">
+      </div>
+    </div>
+    <div id="rate-exchange-info" class="rate-exchange-info"></div>
+    <div class="rate-exchange-group">
+      <div class="input-group">
+        <label>货币</label>
+        <select id="rate-to-currency">
+          <option value="AUD">澳元 (AUD)</option>
+          <option value="CAD">加元 (CAD)</option>
+          <option value="CHF">瑞士法郎 (CHF)</option>
+          <option value="CNY" selected>人民币 (CNY)</option>
+          <option value="EUR">欧元 (EUR)</option>
+          <option value="GBP">英镑 (GBP)</option>
+          <option value="HKD">港币 (HKD)</option>
+          <option value="INR">印度卢比 (INR)</option>
+          <option value="JPY">日元 (JPY)</option>
+          <option value="KRW">韩元 (KRW)</option>
+          <option value="NZD">新西兰元 (NZD)</option>
+          <option value="RUB">俄罗斯卢布 (RUB)</option>
+          <option value="SGD">新加坡元 (SGD)</option>
+          <option value="TWD">新台币 (TWD)</option>
+          <option value="USD">美元 (USD)</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label>金额</label>
+        <input type="number" id="rate-to-amount" step="0.01">
+      </div>
+    </div>
+  </div>
+</div>
 <script src="./js/app.js"></script>
+<script src="./js/rate-calc.js"></script>
 </body>
 </html>
