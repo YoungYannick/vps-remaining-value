@@ -196,8 +196,8 @@ app.get('/api/rates', async (req, res) => {
         });
     }
     const apis = [
-        // { url: 'https://api.exchangerate.fun/latest?base=USD', name: 'ExchangeRate.fun', ttl: 3600000 },
-        // { url: `https://v6.exchangerate-api.com/v6/${V6_API_KEY}/latest/USD`, name: 'ExchangeRate-API V6', ttl: 3600000 },
+        { url: 'https://api.exchangerate.fun/latest?base=USD', name: 'ExchangeRate.fun', ttl: 3600000 },
+        { url: `https://v6.exchangerate-api.com/v6/${V6_API_KEY}/latest/USD`, name: 'ExchangeRate-API V6', ttl: 3600000 },
         { url: 'https://api.exchangerate-api.com/v4/latest/USD', name: 'ExchangeRate-API V4', ttl: 300000 }
     ];
     for (const api of apis) {
