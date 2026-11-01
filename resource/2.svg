@@ -54,15 +54,32 @@
 <g class="anim d1">
 <text x="90" y="280" font-size="16" fill="#FFFFFF" opacity="0.6">剩余价值 (CNY)</text>
 <text x="90" y="350" font-size="60" font-weight="700" fill="url(#g)">141.817</text>
-</g><line x1="610" y1="190" x2="610" y2="435" stroke="#FFFFFF" opacity="0.08"/>
+</g><defs>
+<linearGradient id="symWave" x1="0%" y1="0%" x2="0%" y2="100%">
+<stop offset="0%" stop-color="#ff5a5a" stop-opacity="0.3"/>
+<stop offset="50%" stop-color="#ff5a5a" stop-opacity="1"/>
+<stop offset="100%" stop-color="#ff5a5a" stop-opacity="0.3"/>
+<animate attributeName="y1" from="100%" to="-100%" dur="2.5s" repeatCount="indefinite"/>
+<animate attributeName="y2" from="200%" to="0%" dur="2.5s" repeatCount="indefinite"/>
+</linearGradient>
+</defs>
+<line x1="416" y1="190" x2="416" y2="435" stroke="#FFFFFF" opacity="0.08"/>
+<g class="anim d2">
+<text x="456" y="210" font-size="16" opacity="0.6">交易金额 (CNY)</text>
+<text x="456" y="280" font-size="60" font-weight="700" fill="url(#g)">941.817</text>
+<text x="456" y="310" font-size="14" opacity="0.4">溢价金额 (CNY)</text>
+<text x="456" y="340" font-size="22" font-weight="600" fill="#ff5a5a" dominant-baseline="central"><tspan fill="url(#symWave)">⤴ </tspan> 800.000</text>
+<text x="456" y="390" font-size="14" opacity="0.4">溢价幅度</text>
+<text x="456" y="420" font-size="22" font-weight="600" fill="#ff5a5a" dominant-baseline="central"><tspan fill="url(#symWave)">⤴ </tspan> 564.106%</text>
+</g><line x1="793" y1="190" x2="793" y2="435" stroke="#FFFFFF" opacity="0.08"/>
 <g class="anim d3">
-<text x="650" y="205" font-size="14" opacity="0.4">续费金额</text>
-<text x="650" y="240" font-size="22" font-weight="600" dominant-baseline="central">49.900 USD/年</text>
-<text x="650" y="270" font-size="14" opacity="0.6">≈ 338.322 CNY/年</text>
-<text x="650" y="310" font-size="14" opacity="0.4">剩余天数</text>
-<text x="650" y="340" font-size="22" font-weight="600" dominant-baseline="central">153 / 365 天</text>
-<text x="650" y="390" font-size="14" opacity="0.4">到期时间</text>
-<text x="650" y="420" font-size="22" font-weight="600" dominant-baseline="central">2026-12-11</text>
+<text x="833" y="205" font-size="14" opacity="0.4">续费金额</text>
+<text x="833" y="240" font-size="22" font-weight="600" dominant-baseline="central">49.900 USD/年</text>
+<text x="833" y="270" font-size="14" opacity="0.6">≈ 338.322 CNY/年</text>
+<text x="833" y="310" font-size="14" opacity="0.4">剩余天数</text>
+<text x="833" y="340" font-size="22" font-weight="600" dominant-baseline="central">153 / 365 天</text>
+<text x="833" y="390" font-size="14" opacity="0.4">到期时间</text>
+<text x="833" y="420" font-size="22" font-weight="600" dominant-baseline="central">2026-12-11</text>
 </g>
 <line x1="50" y1="480" x2="1150" y2="480" stroke="#FFFFFF" opacity="0.08"/>
 <text x="90" y="525" font-size="16" opacity="0.6">剩余比例</text>

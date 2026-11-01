@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>VPS 剩余价值计算器 | VPS Remaining Value</title>
-  <meta name="description" content="VPS 剩余价值计算器，支持多种付款周期与 15 种货币汇率换算，快速估算 VPS 交易剩余价值，一键生成 SVG 徽章与分享链接。">
+  <meta name="description" content="VPS 剩余价值计算器，支持多种付款周期与 15 种货币汇率换算，PUSH 费计入交易计算，快速估算 VPS 交易剩余价值，一键生成 SVG 徽章、Markdown 报告与分享链接。">
   <meta name="keywords" content="VPS,剩余价值,计算器,汇率,VPS交易,服务器续费,价值评估">
   <meta name="author" content="Yannick Young">
   <meta name="robots" content="index, follow">
@@ -15,7 +15,7 @@
   <meta property="og:locale" content="zh_CN">
   <meta property="og:url" content="{{siteUrl}}/">
   <meta property="og:title" content="VPS 剩余价值计算器 | VPS Remaining Value">
-  <meta property="og:description" content="VPS 剩余价值计算器，支持多种付款周期与 15 种货币汇率换算，快速估算 VPS 交易剩余价值，一键生成 SVG 徽章与分享链接。">
+  <meta property="og:description" content="VPS 剩余价值计算器，支持多种付款周期与 15 种货币汇率换算，PUSH 费计入交易计算，快速估算 VPS 交易剩余价值，一键生成 SVG 徽章、Markdown 报告与分享链接。">
   <meta property="og:image" content="{{siteUrl}}/images/logo-share.png">
   <meta property="og:image:alt" content="VPS Remaining Value LOGO">
   <link rel="icon" href="/favicon.ico" type="image/x-icon">
@@ -28,7 +28,7 @@
     "name": "VPS Remaining Value",
     "alternateName": "VPS 剩余价值计算器",
     "url": "{{siteUrl}}/",
-    "description": "VPS 剩余价值计算器，支持多种付款周期与 15 种货币汇率换算，快速估算 VPS 交易剩余价值，一键生成 SVG 徽章与分享链接。",
+    "description": "VPS 剩余价值计算器，支持多种付款周期与 15 种货币汇率换算，PUSH 费计入交易计算，快速估算 VPS 交易剩余价值，一键生成 SVG 徽章、Markdown 报告与分享链接。",
     "applicationCategory": "UtilityApplication",
     "operatingSystem": "Any",
     "inLanguage": "zh-CN",
@@ -255,8 +255,17 @@
       </div>
     </div>
     <div class="display">
-      <div id="status-msg" class="placeholder-msg">请填写完整的参数以生成预览</div>
-      <img id="preview" src="">
+      <div class="preview-pane svg-pane">
+        <div id="status-msg" class="placeholder-msg">请填写完整的参数以生成预览</div>
+        <img id="preview" src="">
+      </div>
+      <div class="preview-pane md-pane">
+        <div class="md-header">
+          <span class="md-title">Markdown 预览</span>
+          <button id="copy-md-preview-btn" class="md-copy-btn" type="button">复制 Markdown</button>
+        </div>
+        <div id="md-preview" class="md-content"></div>
+      </div>
     </div>
   </div>
 </div>

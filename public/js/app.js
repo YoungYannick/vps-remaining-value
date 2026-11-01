@@ -242,11 +242,145 @@ function getUrl() {
     const b64 = generateBase64Url(paramsObj);
     return `/svg${b64}`;
 }
+const mdPreview = document.getElementById('md-preview');
+const PD_TEXT = { 30: '月付', 90: '季付', 180: '半年付', 365: '年付', 730: '两年付', 1095: '三年付', 1825: '五年付' };
+let mdReportSource = '';
+function escapeHtml(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function renderInline(text) {
+    return escapeHtml(text)
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+}
+function splitTableRow(line) {
+    return line.replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
+}
+function renderTable(rows) {
+    if (rows.length < 2) return '';
+    const header = splitTableRow(rows[0]);
+    const bodyRows = rows.slice(1)
+        .filter(r => !/^\|[\s\-|]+\|?$/.test(r))
+        .map(splitTableRow);
+    let html = '<table>';
+    if (header.length === 4 && header[1] === '' && header[3] === '') {
+        html += `<thead><tr><th colspan="2">${renderInline(header[0])}</th><th colspan="2">${renderInline(header[2])}</th></tr></thead>`;
+    } else if (header.length === 2 && header[1] === '') {
+        html += `<thead><tr><th colspan="2">${renderInline(header[0])}</th></tr></thead>`;
+    } else {
+        html += `<thead><tr>${header.map(h => `<th>${renderInline(h)}</th>`).join('')}</tr></thead>`;
+    }
+    html += '<tbody>';
+    for (const row of bodyRows) {
+        html += `<tr>${row.map(c => `<td>${renderInline(c)}</td>`).join('')}</tr>`;
+    }
+    html += '</tbody></table>';
+    return html;
+}
+function renderMarkdown(md) {
+    if (!md) return '';
+    const lines = md.split('\n');
+    let html = '';
+    let inList = false;
+    let i = 0;
+    const closeList = () => { if (inList) { html += '</ul>'; inList = false; } };
+    while (i < lines.length) {
+        const line = lines[i];
+        if (line.startsWith('|')) {
+            closeList();
+            const rows = [];
+            while (i < lines.length && lines[i].startsWith('|')) {
+                rows.push(lines[i]);
+                i++;
+            }
+            html += renderTable(rows);
+            continue;
+        }
+        if (/^##\s+/.test(line)) {
+            closeList();
+            html += `<h2>${renderInline(line.replace(/^##\s+/, ''))}</h2>`;
+        } else if (/^#\s+/.test(line)) {
+            closeList();
+            html += `<h1>${renderInline(line.replace(/^#\s+/, ''))}</h1>`;
+        } else if (/^>\s+/.test(line)) {
+            closeList();
+            html += `<blockquote>${renderInline(line.replace(/^>\s+/, ''))}</blockquote>`;
+        } else if (/^-\s+/.test(line)) {
+            if (!inList) { html += '<ul>'; inList = true; }
+            html += `<li>${renderInline(line.replace(/^-\s+/, ''))}</li>`;
+        } else if (line.trim() !== '') {
+            closeList();
+            html += `<p>${renderInline(line)}</p>`;
+        } else {
+            closeList();
+        }
+        i++;
+    }
+    closeList();
+    return html;
+}
+function buildMarkdownReport() {
+    const rv = calculateRV();
+    if (rv <= 0) return '';
+    const { remainDays, totalCycleDays } = getRemainInfo();
+    const ra = parseFloat(els.ra.value);
+    const pd = parseInt(els.pd.value);
+    const cycleText = PD_TEXT[pd] || `${pd} 天`;
+    const rc = els.rc.value;
+    const tc = els.tc.value;
+    const pushTc = getPushAmountTc();
+    const pushVal = parseFloat(els.push.value) || 0;
+    const isBuyer = els.ps.value === 'buyer';
+    let rateLine = `1 ${rc} = ${parseFloat(currentRate).toFixed(4)} ${tc}`;
+    if (pushTc > 0 && els.pc.value !== tc && els.pc.value !== rc) {
+        rateLine += ` · 1 ${els.pc.value} = ${getPushRate().toFixed(4)} ${tc}`;
+    }
+    const taVal = parseFloat(els.ta.value);
+    const hasTa = !isNaN(taVal);
+    const pct = totalCycleDays > 0 ? (remainDays / totalCycleDays) * 100 : 0;
+    const leftRows = [
+        ['续费金额', `${ra.toFixed(3)} ${rc} · ${cycleText}`],
+        ['计费周期', `${totalCycleDays} 天`],
+        ['到期时间', `${els.ed.value}（余 ${remainDays} 天）`],
+        ['剩余比例', `${pct.toFixed(3)}%`],
+        ['交易日期', `${els.td.value}`]
+    ];
+    const rightRows = [];
+    if (hasTa) {
+        const premium = taVal - pushTc - rv;
+        const sign = premium >= 0 ? '+' : '-';
+        rightRows.push(['交易金额', `**${taVal.toFixed(3)} ${tc}**${pushTc > 0 && isBuyer ? '（含PUSH费）' : ''}`]);
+        rightRows.push(['剩余价值', `**${rv.toFixed(3)} ${tc}**`]);
+        rightRows.push(['溢价金额', `${sign}${Math.abs(premium).toFixed(3)} ${tc}`]);
+        rightRows.push(['溢价幅度', `${sign}${Math.abs((premium / rv) * 100).toFixed(3)}%`]);
+    } else {
+        rightRows.push(['剩余价值', `**${rv.toFixed(3)} ${tc}**`]);
+    }
+    if (pushTc > 0) {
+        rightRows.push(['PUSH费', `${pushVal.toFixed(3)} ${els.pc.value}${els.pc.value !== tc ? ` ≈ ${pushTc.toFixed(3)} ${tc}` : ''} · **${isBuyer ? '买家承担' : '卖家承担'}**`]);
+    }
+    const rowCount = Math.max(leftRows.length, rightRows.length);
+    const lines = [];
+    lines.push('# VPS 剩余价值', '');
+    lines.push('| 基础信息 | | 交易信息 | |');
+    lines.push('| --- | --- | --- | --- |');
+    for (let i = 0; i < rowCount; i++) {
+        const l = leftRows[i] || ['', ''];
+        const r = rightRows[i] || ['', ''];
+        lines.push(`| ${l[0]} | ${l[1]} | ${r[0]} | ${r[1]} |`);
+    }
+    lines.push(`| 汇率 | ${rateLine} | | |`);
+    const b64 = getUrl().slice(4);
+    lines.push('', `[查看完整信息](${window.location.origin}/vrv${b64})`);
+    return lines.join('\n');
+}
 let debounceTimer = null;
 function update() {
     if (!els.ra.value || !els.pd.value || !els.ed.value) {
         img.style.display = 'none';
         statusMsg.style.display = 'block';
+        mdReportSource = '';
+        mdPreview.innerHTML = '';
         return;
     }
     syncTransactionFields();
@@ -259,14 +393,15 @@ function update() {
             img.src = targetUrl;
             statusMsg.style.display = 'none';
             img.style.display = 'block';
+            mdReportSource = buildMarkdownReport();
+            mdPreview.innerHTML = renderMarkdown(mdReportSource);
         };
         tempImg.src = targetUrl;
     }, 300);
 }
-function calculateRV() {
-    if (!els.ra.value || !els.pd.value || !els.ed.value || !els.td.value) return 0;
-    const ra = parseFloat(els.ra.value);
-    const pd = parseInt(els.pd.value);
+function getRemainInfo() {
+    const pd = parseInt(els.pd.value) || 0;
+    if (!els.ed.value || !els.td.value) return { remainDays: 0, totalCycleDays: pd };
     const endMs = new Date(els.ed.value).getTime();
     const transMs = new Date(els.td.value).getTime();
     const remainDays = Math.max(0, Math.ceil((endMs - transMs) / (1000 * 60 * 60 * 24)));
@@ -290,6 +425,12 @@ function calculateRV() {
         }
         totalCycleDays = Math.round((endMs - d.getTime()) / (1000 * 60 * 60 * 24));
     }
+    return { remainDays, totalCycleDays };
+}
+function calculateRV() {
+    if (!els.ra.value || !els.pd.value || !els.ed.value || !els.td.value) return 0;
+    const ra = parseFloat(els.ra.value);
+    const { remainDays, totalCycleDays } = getRemainInfo();
     return (ra / totalCycleDays) * remainDays * currentRate;
 }
 els.dr.addEventListener('input', (e) => {
@@ -356,6 +497,11 @@ document.getElementById('copy-md-btn').addEventListener('click', (e) => {
     const shareUrlShort = window.location.origin + `/vrv${b64}`;
     fallbackCopyTextToClipboard(`[![VPS Remaining Value](${fullUrlShort})](${shareUrlShort} "查看工具")`);
     tempText(e.target, '已复制 Markdown');
+});
+document.getElementById('copy-md-preview-btn').addEventListener('click', (e) => {
+    if (!mdReportSource) return;
+    fallbackCopyTextToClipboard(mdReportSource);
+    tempText(e.target, '已复制全文');
 });
 document.getElementById('copy-link-btn').addEventListener('click', (e) => {
     if (!els.ra.value || !els.pd.value || !els.ed.value) return;
