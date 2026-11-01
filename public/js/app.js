@@ -1,4 +1,4 @@
-const els = ['ra', 'rc', 'pd', 'cm', 'ed', 'td', 'dr', 'pa', 'ta', 'tc', 'eom'].reduce((acc, id) => {
+const els = ['ra', 'rc', 'pd', 'cm', 'ed', 'td', 'dr', 'pa', 'ta', 'tc', 'eom', 'push', 'ps', 'pc'].reduce((acc, id) => {
     acc[id] = document.getElementById(id);
     return acc;
 }, {});
@@ -14,30 +14,71 @@ const rateDisplay = document.getElementById('rate-display');
 let exchangeRates = {};
 let currentRate = 1.0000;
 let lastTxField = 'ta';
+let urlPushRate = null;
 
+function getPushRate() {
+    const pc = els.pc.value;
+    const tc = els.tc.value;
+    if (exchangeRates[pc] && exchangeRates[tc]) {
+        return exchangeRates[tc] / exchangeRates[pc];
+    }
+    if (urlPushRate !== null) return urlPushRate;
+    return 1;
+}
+function getPushAmountTc() {
+    const v = parseFloat(els.push.value);
+    if (isNaN(v) || v <= 0) return 0;
+    return v * getPushRate();
+}
+function updateManualMark() {
+    ['ta', 'pa', 'dr'].forEach(id => {
+        els[id].closest('.input-group').classList.toggle('is-manual', lastTxField === id && els[id].value !== '');
+    });
+}
+function updateActualMarks() {
+    const paMark = document.getElementById('actual-pa');
+    const drMark = document.getElementById('actual-dr');
+    let paText = '';
+    let drText = '';
+    const pushTc = getPushAmountTc();
+    if (pushTc > 0 && els.ps.value === 'seller' && (lastTxField === 'pa' || lastTxField === 'dr')) {
+        const rv = calculateRV();
+        if (rv > 0) {
+            const paVal = parseFloat(els.pa.value);
+            const drVal = parseFloat(els.dr.value);
+            if (!isNaN(paVal)) paText = `实际 ${(paVal - pushTc).toFixed(3)}`;
+            if (!isNaN(drVal)) drText = `实际 ${(drVal - pushTc / rv).toFixed(3)}`;
+        }
+    }
+    paMark.innerText = paText;
+    drMark.innerText = drText;
+}
 function syncTransactionFields() {
     const rv = calculateRV();
     if (rv <= 0) return;
+    const pushTc = getPushAmountTc();
+    const isBuyerPush = els.ps.value === 'buyer';
 
     if (lastTxField === 'dr' && els.dr.value !== '') {
         let drVal = parseFloat(els.dr.value);
         if (isNaN(drVal)) return;
         if (drVal > 1 && drVal <= 10) drVal = drVal / 10;
         else if (drVal > 10) drVal = drVal / 100;
-        const targetTa = rv * drVal;
-        els.ta.value = targetTa.toFixed(3);
-        els.pa.value = (targetTa - rv).toFixed(3);
+        const baseTa = rv * drVal;
+        els.ta.value = (isBuyerPush && pushTc > 0 ? baseTa + pushTc : baseTa).toFixed(3);
+        els.pa.value = (baseTa - rv).toFixed(3);
     } else if (lastTxField === 'pa' && els.pa.value !== '') {
         const paVal = parseFloat(els.pa.value);
         if (isNaN(paVal)) return;
-        const targetTa = rv + paVal;
-        els.ta.value = Math.max(0, targetTa).toFixed(3);
-        els.dr.value = (targetTa / rv).toFixed(3);
+        const baseTa = rv + paVal;
+        els.ta.value = Math.max(0, isBuyerPush && pushTc > 0 ? baseTa + pushTc : baseTa).toFixed(3);
+        els.dr.value = (baseTa / rv).toFixed(3);
     } else if (lastTxField === 'ta' && els.ta.value !== '') {
         const taVal = parseFloat(els.ta.value);
         if (isNaN(taVal)) return;
-        els.dr.value = (taVal / rv).toFixed(3);
-        els.pa.value = (taVal - rv).toFixed(3);
+        const baseTa = pushTc > 0 ? taVal - pushTc : taVal;
+        els.dr.value = (baseTa / rv).toFixed(3);
+        els.pa.value = (baseTa - rv).toFixed(3);
     }
 }
 async function fetchRates() {
@@ -66,18 +107,22 @@ function updateRateField() {
     update();
 }
 const SCHEMA = [
-    { key: 'ra', type: 'float' },
-    { key: 'rc', type: 'dict', dict: {'AUD': 1, 'CAD': 2, 'CHF': 3, 'CNY': 4, 'EUR': 5, 'GBP': 6, 'HKD': 7, 'INR': 8, 'JPY': 9, 'KRW': 10, 'NZD': 11, 'RUB': 12, 'SGD': 13, 'TWD': 14, 'USD': 15} },
-    { key: 'pd', type: 'u16' },
-    { key: 'cm', type: 'dict', dict: {'real': 1, 'fixed': 2} },
-    { key: 'ed', type: 'date' },
-    { key: 'td', type: 'date' },
-    { key: 'dr', type: 'float' },
-    { key: 'pa', type: 'float' },
-    { key: 'ta', type: 'float' },
-    { key: 'tc', type: 'dict', dict: {'AUD': 1, 'CAD': 2, 'CHF': 3, 'CNY': 4, 'EUR': 5, 'GBP': 6, 'HKD': 7, 'INR': 8, 'JPY': 9, 'KRW': 10, 'NZD': 11, 'RUB': 12, 'SGD': 13, 'TWD': 14, 'USD': 15} },
-    { key: 'eom', type: 'dict', dict: {'exact': 1, 'eom': 2} },
-    { key: 'er', type: 'float' }
+    { key: 'ra', type: 'float', bit: 0 },
+    { key: 'rc', type: 'dict', bit: 1, dict: {'AUD': 1, 'CAD': 2, 'CHF': 3, 'CNY': 4, 'EUR': 5, 'GBP': 6, 'HKD': 7, 'INR': 8, 'JPY': 9, 'KRW': 10, 'NZD': 11, 'RUB': 12, 'SGD': 13, 'TWD': 14, 'USD': 15} },
+    { key: 'pd', type: 'u16', bit: 2 },
+    { key: 'cm', type: 'dict', bit: 3, dict: {'real': 1, 'fixed': 2} },
+    { key: 'ed', type: 'date', bit: 4 },
+    { key: 'td', type: 'date', bit: 5 },
+    { key: 'dr', type: 'float', bit: 6 },
+    { key: 'pa', type: 'float', bit: 7 },
+    { key: 'ta', type: 'float', bit: 8 },
+    { key: 'tc', type: 'dict', bit: 9, dict: {'AUD': 1, 'CAD': 2, 'CHF': 3, 'CNY': 4, 'EUR': 5, 'GBP': 6, 'HKD': 7, 'INR': 8, 'JPY': 9, 'KRW': 10, 'NZD': 11, 'RUB': 12, 'SGD': 13, 'TWD': 14, 'USD': 15} },
+    { key: 'eom', type: 'dict', bit: 10, dict: {'exact': 1, 'eom': 2} },
+    { key: 'er', type: 'float', bit: 11 },
+    { key: 'push', type: 'float', bit: 12 },
+    { key: 'ps', type: 'dict', bit: 13, dict: {'seller': 1, 'buyer': 2} },
+    { key: 'pc', type: 'dict', bit: 16, dict: {'AUD': 1, 'CAD': 2, 'CHF': 3, 'CNY': 4, 'EUR': 5, 'GBP': 6, 'HKD': 7, 'INR': 8, 'JPY': 9, 'KRW': 10, 'NZD': 11, 'RUB': 12, 'SGD': 13, 'TWD': 14, 'USD': 15} },
+    { key: 'per', type: 'float', bit: 17 }
 ];
 const dateToDays = (dateStr) => Math.floor(new Date(dateStr).getTime() / 86400000);
 function generateBase64Url(paramsObj) {
@@ -85,56 +130,67 @@ function generateBase64Url(paramsObj) {
     let f64Mask = 0;
     let totalBytes = 2;
     for (let i = 0; i < SCHEMA.length; i++) {
-        const val = paramsObj[SCHEMA[i].key];
+        const def = SCHEMA[i];
+        const val = paramsObj[def.key];
         if (val !== undefined && val !== '') {
-            mask |= (1 << i);
-            if (SCHEMA[i].type === 'float') {
-                if (String(val).replace(/[^0-9]/g, '').length > 7) {
-                    f64Mask |= (1 << i);
+            mask |= (1 << def.bit);
+            if (def.type === 'float') {
+                if (def.bit < 16 && String(val).replace(/[^0-9]/g, '').length > 7) {
+                    f64Mask |= (1 << def.bit);
                     totalBytes += 8;
                 } else {
                     totalBytes += 4;
                 }
-            } else if (SCHEMA[i].type === 'u16' || SCHEMA[i].type === 'date') {
+            } else if (def.type === 'u16' || def.type === 'date') {
                 totalBytes += 2;
-            } else if (SCHEMA[i].type === 'dict') {
+            } else if (def.type === 'dict') {
                 totalBytes += 1;
             }
         }
     }
     const hasF64Mask = f64Mask > 0;
+    const extMask = mask >>> 16;
+    const hasExtMask = extMask > 0;
     if (hasF64Mask) {
         mask |= 0x8000;
         totalBytes += 2;
     }
+    if (hasExtMask) {
+        mask |= 0x4000;
+        totalBytes += 2;
+    }
     const buffer = new ArrayBuffer(totalBytes);
     const view = new DataView(buffer);
-    view.setUint16(0, mask);
+    view.setUint16(0, mask & 0xFFFF);
     let offset = 2;
     if (hasF64Mask) {
         view.setUint16(offset, f64Mask);
         offset += 2;
     }
+    if (hasExtMask) {
+        view.setUint16(offset, extMask);
+        offset += 2;
+    }
     for (let i = 0; i < SCHEMA.length; i++) {
-        if ((mask & (1 << i)) !== 0) {
-            const val = paramsObj[SCHEMA[i].key];
-            const schemaDef = SCHEMA[i];
-            if (schemaDef.type === 'float') {
-                if ((f64Mask & (1 << i)) !== 0) {
+        const def = SCHEMA[i];
+        if ((mask & (1 << def.bit)) !== 0) {
+            const val = paramsObj[def.key];
+            if (def.type === 'float') {
+                if ((f64Mask & (1 << def.bit)) !== 0) {
                     view.setFloat64(offset, parseFloat(val));
                     offset += 8;
                 } else {
                     view.setFloat32(offset, parseFloat(val));
                     offset += 4;
                 }
-            } else if (schemaDef.type === 'u16') {
+            } else if (def.type === 'u16') {
                 view.setUint16(offset, parseInt(val, 10));
                 offset += 2;
-            } else if (schemaDef.type === 'date') {
+            } else if (def.type === 'date') {
                 view.setUint16(offset, dateToDays(val));
                 offset += 2;
-            } else if (schemaDef.type === 'dict') {
-                view.setUint8(offset, schemaDef.dict[val] || 0);
+            } else if (def.type === 'dict') {
+                view.setUint8(offset, def.dict[val] || 0);
                 offset += 1;
             }
         }
@@ -154,6 +210,25 @@ function getUrlParamsObj() {
         }
     }
     paramsObj['er'] = typeof currentRate === 'number' ? currentRate.toFixed(4) : parseFloat(currentRate).toFixed(4);
+    ['ta', 'pa', 'dr'].forEach(k => {
+        if (k !== lastTxField || els[k].value === '') delete paramsObj[k];
+    });
+    if (paramsObj.rc === 'USD') delete paramsObj.rc;
+    if (paramsObj.tc === 'CNY') delete paramsObj.tc;
+    if (getPushAmountTc() > 0) {
+        if (paramsObj.ps === 'seller') delete paramsObj.ps;
+        if (paramsObj.pc === 'CNY') delete paramsObj.pc;
+        if (els.pc.value === els.tc.value) {
+            delete paramsObj.per;
+        } else {
+            paramsObj['per'] = getPushRate().toFixed(4);
+        }
+    } else {
+        delete paramsObj.push;
+        delete paramsObj.ps;
+        delete paramsObj.pc;
+        delete paramsObj.per;
+    }
     if (paramsObj.eom === 'exact') {
         delete paramsObj.eom;
     }
@@ -175,6 +250,7 @@ function update() {
         return;
     }
     syncTransactionFields();
+    updateActualMarks();
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
         const targetUrl = getUrl();
@@ -222,6 +298,7 @@ els.dr.addEventListener('input', (e) => {
         els.ta.value = '';
         els.pa.value = '';
     }
+    updateManualMark();
     update();
 });
 els.pa.addEventListener('input', (e) => {
@@ -230,6 +307,7 @@ els.pa.addEventListener('input', (e) => {
         els.ta.value = '';
         els.dr.value = '';
     }
+    updateManualMark();
     update();
 });
 els.ta.addEventListener('input', (e) => {
@@ -238,6 +316,7 @@ els.ta.addEventListener('input', (e) => {
         els.dr.value = '';
         els.pa.value = '';
     }
+    updateManualMark();
     update();
 });
 Object.values(els).forEach(el => {
@@ -245,6 +324,7 @@ Object.values(els).forEach(el => {
 });
 els.rc.addEventListener('change', updateRateField);
 els.tc.addEventListener('change', updateRateField);
+els.pc.addEventListener('change', update);
 function tempText(btn, text) {
     const og = btn.innerText;
     btn.innerText = text;
@@ -304,6 +384,16 @@ Object.keys(els).forEach(key => {
         hasParams = true;
     }
 });
+if (urlParams.has('per')) {
+    urlPushRate = parseFloat(urlParams.get('per'));
+}
+if (urlParams.has('ta')) {
+    lastTxField = 'ta';
+} else if (urlParams.has('pa')) {
+    lastTxField = 'pa';
+} else if (urlParams.has('dr')) {
+    lastTxField = 'dr';
+}
 if (urlParams.has('er')) {
     currentRate = parseFloat(urlParams.get('er')).toFixed(4);
     const from = els.rc.value || 'USD';
@@ -343,6 +433,13 @@ document.getElementById('reset-btn').addEventListener('click', (e) => {
     els.dr.value = '';
     els.pa.value = '';
     els.tc.value = 'CNY';
+    els.push.value = '0';
+    els.ps.value = 'seller';
+    els.pc.value = 'CNY';
+    initPsCapsule();
+    document.querySelectorAll('.input-group.is-manual').forEach(g => g.classList.remove('is-manual'));
+    lastTxField = 'ta';
+    urlPushRate = null;
     window.history.replaceState({}, '', window.location.pathname);
     fetchRates();
     tempText(e.target, '已重置');
@@ -406,3 +503,25 @@ function checkEomVisibility() {
 els.ed.addEventListener('change', checkEomVisibility);
 checkEomVisibility();
 initEomCapsule();
+const psSwitch = document.getElementById('ps-switch');
+const psBtns = document.querySelectorAll('.ps-btn');
+const psInput = document.getElementById('ps');
+function initPsCapsule() {
+    const val = psInput.value || 'seller';
+    psBtns.forEach(b => b.classList.remove('active'));
+    document.querySelector(`.ps-btn[data-value="${val}"]`)?.classList.add('active');
+    if (val === 'buyer') {
+        psSwitch.classList.add('is-buyer');
+    } else {
+        psSwitch.classList.remove('is-buyer');
+    }
+}
+psBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        psInput.value = btn.dataset.value;
+        initPsCapsule();
+        update();
+    });
+});
+initPsCapsule();
+updateManualMark();

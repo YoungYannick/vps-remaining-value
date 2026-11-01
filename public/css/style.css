@@ -53,16 +53,40 @@ html {
 }
 .layout-wrapper {
     width: 100%;
-    max-width: 95%;
+    max-width: 85%;
     padding: 20px;
     box-sizing: border-box;
     animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .layout {
     display: flex;
-    gap: 32px;
+    gap: 24px;
     width: 100%;
     align-items: stretch;
+}
+.panel {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    padding: 24px;
+    border-radius: 16px;
+    flex: 1;
+    min-width: 420px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+}
+.header {
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--gold);
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--panel-border);
+    padding-bottom: 12px;
+    text-shadow: 0 0 20px var(--gold-glow);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 .panel {
     background: var(--panel);
@@ -99,14 +123,14 @@ html {
 }
 .rate-preview {
     position: relative;
-    margin-bottom: 24px;
+    margin-bottom: 16px;
     background: rgba(235, 210, 136, 0.03);
-    padding: 16px;
+    padding: 12px;
     border-radius: 12px;
     border: 1px solid rgba(235, 210, 136, 0.1);
 }
 .section-mt {
-    margin-top: 24px;
+    margin-top: 16px;
 }
 .rate-preview label {
     color: var(--gold-dim);
@@ -126,12 +150,15 @@ html {
 .form-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
+    gap: 16px;
     flex-grow: 1;
+}
+.push-grid {
+    margin-top: 16px;
 }
 .display {
     flex: 1.5;
-    min-width: 500px;
+    min-width: 400px;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -164,20 +191,20 @@ html {
     display: none;
 }
 label {
-    margin-bottom: 8px;
-    font-size: 13px;
+    margin-bottom: 6px;
+    font-size: 12px;
     color: var(--text-muted);
     font-weight: 500;
 }
 input, select {
     width: 100%;
-    padding: 14px;
+    padding: 10px 12px;
     background: #0a0a0d;
     border: 1px solid var(--panel-border);
     color: var(--text);
     border-radius: 8px;
     box-sizing: border-box;
-    font-size: 14px;
+    font-size: 13px;
     font-family: var(--font);
     transition: all 0.3s ease;
     appearance: none;
@@ -185,8 +212,8 @@ input, select {
 select {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%238b8b99' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
-    background-position: right 14px center;
-    padding-right: 36px;
+    background-position: right 12px center;
+    padding-right: 32px;
 }
 input:focus, select:focus {
     outline: none;
@@ -202,23 +229,24 @@ input[type="number"] {
     -moz-appearance: textfield;
 }
 .btn-group {
-    margin-top: 32px;
+    margin-top: 20px;
     display: flex;
-    gap: 16px;
+    gap: 12px;
     flex-wrap: wrap;
 }
 button {
     background: var(--gold);
     color: #000;
     border: none;
-    padding: 14px 20px;
+    padding: 10px 14px;
     border-radius: 8px;
     font-weight: 600;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 13px;
     font-family: var(--font);
     flex: 1;
-    min-width: 150px;
+    min-width: 0;
+    white-space: nowrap;
     transition: all 0.2s ease;
     box-shadow: 0 4px 12px var(--gold-glow);
 }
@@ -320,7 +348,13 @@ button.alt-btn:hover {
     display: flex;
     align-items: center;
     gap: 6px;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
+}
+.actual-mark {
+    color: var(--gold);
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: 6px;
 }
 .cm-header label, .eom-header label, .field-header label { margin-bottom: 0; }
 .tooltip-container {
@@ -361,16 +395,16 @@ button.alt-btn:hover {
     border-radius: 8px;
     position: relative;
     padding: 4px;
-    height: 44px;
+    height: 38px;
     box-sizing: border-box;
 }
-.cm-btn, .eom-btn {
+.cm-btn, .eom-btn, .ps-btn {
     flex: 1;
     background: transparent;
     color: var(--text-muted);
     border: none;
     padding: 0;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
     border-radius: 6px;
     cursor: pointer;
@@ -379,8 +413,8 @@ button.alt-btn:hover {
     box-shadow: none;
     min-width: auto;
 }
-.cm-btn.active, .eom-btn.active { color: #000; }
-.cm-btn:hover, .eom-btn:hover {
+.cm-btn.active, .eom-btn.active, .ps-btn.active { color: #000; }
+.cm-btn:hover, .eom-btn:hover, .ps-btn:hover {
     transform: none;
     box-shadow: none;
     background: transparent;
@@ -402,6 +436,18 @@ button.alt-btn:hover {
 .capsule-switch.is-exact .capsule-bg {
     left: 50%;
 }
+.capsule-switch.is-buyer .capsule-bg {
+    left: 50%;
+}
+.input-group.is-manual label {
+    color: var(--gold);
+}
+.input-group.is-manual label::before {
+    content: '●';
+    font-size: 8px;
+    margin-right: 5px;
+    vertical-align: 2px;
+}
 @media (max-width: 1200px) {
     body { align-items: flex-start; }
     .layout { flex-direction: column; }
@@ -415,7 +461,7 @@ button.alt-btn:hover {
     .form-grid { grid-template-columns: 1fr; gap: 16px; }
     .display { min-height: 260px; border-radius: 12px; }
     .btn-group { gap: 12px; margin-top: 24px; }
-    button { min-width: calc(50% - 6px); padding: 12px 16px; }
+    button { min-width: 0; padding: 10px 8px; font-size: 12px; }
     .tooltip { white-space: normal; width: max-content; max-width: 200px; text-align: center; }
 }
 @media (max-width: 380px) {
@@ -458,7 +504,7 @@ button.alt-btn:hover {
     background: var(--panel);
     border: 1px solid var(--panel-border);
     border-radius: 16px;
-    width: min(560px, calc(100vw - 40px));
+    width: min(440px, calc(100vw - 40px));
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
     z-index: 100;
     display: none;
@@ -476,7 +522,7 @@ button.alt-btn:hover {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 14px 20px;
+    padding: 12px 16px;
     border-bottom: 1px solid var(--panel-border);
     cursor: grab;
     user-select: none;
@@ -514,12 +560,12 @@ button.alt-btn:hover {
     box-shadow: none;
 }
 .rate-modal-body {
-    padding: 20px;
+    padding: 16px;
 }
 .rate-exchange-group {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 20px;
+    gap: 16px;
 }
 .rate-exchange-info {
     display: flex;

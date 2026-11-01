@@ -66,19 +66,27 @@ app.use((req, res, next) => {
     }
     next();
 });
+// ra: 续费金额 | rc: 续费货币 | pd: 付款周期(天) | cm: 计算模式 | ed: 到期时间 | td: 交易时间
+// dr: 交易折扣 | pa: 溢价金额 | ta: 交易金额 | tc: 交易货币 | eom: 起始日推算 | er: 汇率(rc->tc)
+// push: PUSH费 | ps: PUSH费承担方 | pc: PUSH费货币 | per: PUSH汇率(pc->tc)
+// bit14 为扩展标志(存在 bit16+ 字段时头部追加 2 字节 extMask)，bit15 为 f64 双精度标志
 const SCHEMA = [
-    { key: 'ra', type: 'float' },
-    { key: 'rc', type: 'dict', dict: {'AUD': 1, 'CAD': 2, 'CHF': 3, 'CNY': 4, 'EUR': 5, 'GBP': 6, 'HKD': 7, 'INR': 8, 'JPY': 9, 'KRW': 10, 'NZD': 11, 'RUB': 12, 'SGD': 13, 'TWD': 14, 'USD': 15} },
-    { key: 'pd', type: 'u16' },
-    { key: 'cm', type: 'dict', dict: {'real': 1, 'fixed': 2} },
-    { key: 'ed', type: 'date' },
-    { key: 'td', type: 'date' },
-    { key: 'dr', type: 'float' },
-    { key: 'pa', type: 'float' },
-    { key: 'ta', type: 'float' },
-    { key: 'tc', type: 'dict', dict: {'AUD': 1, 'CAD': 2, 'CHF': 3, 'CNY': 4, 'EUR': 5, 'GBP': 6, 'HKD': 7, 'INR': 8, 'JPY': 9, 'KRW': 10, 'NZD': 11, 'RUB': 12, 'SGD': 13, 'TWD': 14, 'USD': 15} },
-    { key: 'eom', type: 'dict', dict: {'exact': 1, 'eom': 2} },
-    { key: 'er', type: 'float' }
+    { key: 'ra', type: 'float', bit: 0 },
+    { key: 'rc', type: 'dict', bit: 1, dict: {'AUD': 1, 'CAD': 2, 'CHF': 3, 'CNY': 4, 'EUR': 5, 'GBP': 6, 'HKD': 7, 'INR': 8, 'JPY': 9, 'KRW': 10, 'NZD': 11, 'RUB': 12, 'SGD': 13, 'TWD': 14, 'USD': 15} },
+    { key: 'pd', type: 'u16', bit: 2 },
+    { key: 'cm', type: 'dict', bit: 3, dict: {'real': 1, 'fixed': 2} },
+    { key: 'ed', type: 'date', bit: 4 },
+    { key: 'td', type: 'date', bit: 5 },
+    { key: 'dr', type: 'float', bit: 6 },
+    { key: 'pa', type: 'float', bit: 7 },
+    { key: 'ta', type: 'float', bit: 8 },
+    { key: 'tc', type: 'dict', bit: 9, dict: {'AUD': 1, 'CAD': 2, 'CHF': 3, 'CNY': 4, 'EUR': 5, 'GBP': 6, 'HKD': 7, 'INR': 8, 'JPY': 9, 'KRW': 10, 'NZD': 11, 'RUB': 12, 'SGD': 13, 'TWD': 14, 'USD': 15} },
+    { key: 'eom', type: 'dict', bit: 10, dict: {'exact': 1, 'eom': 2} },
+    { key: 'er', type: 'float', bit: 11 },
+    { key: 'push', type: 'float', bit: 12 },
+    { key: 'ps', type: 'dict', bit: 13, dict: {'seller': 1, 'buyer': 2} },
+    { key: 'pc', type: 'dict', bit: 16, dict: {'AUD': 1, 'CAD': 2, 'CHF': 3, 'CNY': 4, 'EUR': 5, 'GBP': 6, 'HKD': 7, 'INR': 8, 'JPY': 9, 'KRW': 10, 'NZD': 11, 'RUB': 12, 'SGD': 13, 'TWD': 14, 'USD': 15} },
+    { key: 'per', type: 'float', bit: 17 }
 ];
 const daysToDate = (days) => new Date(days * 86400000).toISOString().split('T')[0];
 function decodeBase64Params(base64UrlStr) {
@@ -93,24 +101,32 @@ function decodeBase64Params(base64UrlStr) {
             uint8Array[i] = binaryStr.charCodeAt(i);
         }
         const view = new DataView(buffer);
-        const mask = view.getUint16(0);
-        const hasF64Mask = (mask & 0x8000) !== 0;
+        const maskLo = view.getUint16(0);
+        const hasF64Mask = (maskLo & 0x8000) !== 0;
+        const hasExtMask = (maskLo & 0x4000) !== 0;
         let f64Mask = 0;
+        let extMask = 0;
         let offset = 2;
         let isLegacyF32 = false;
         if (hasF64Mask) {
             f64Mask = view.getUint16(offset);
             offset += 2;
-        } else {
-            const expectedF64Len = SCHEMA.reduce((acc, s, i) => acc + ((mask & (1 << i)) ? (s.type === 'float' ? 8 : s.type === 'dict' ? 1 : 2) : 0), 2);
+        }
+        if (hasExtMask) {
+            extMask = view.getUint16(offset);
+            offset += 2;
+        }
+        const mask = (maskLo & 0x3FFF) | (extMask << 16);
+        if (!hasF64Mask) {
+            const expectedF64Len = SCHEMA.reduce((acc, s) => acc + ((mask & (1 << s.bit)) ? (s.type === 'float' ? 8 : s.type === 'dict' ? 1 : 2) : 0), 2) + (hasExtMask ? 2 : 0);
             isLegacyF32 = buffer.byteLength !== expectedF64Len;
         }
         const outParams = {};
         for (let i = 0; i < SCHEMA.length; i++) {
-            if ((mask & (1 << i)) !== 0) {
-                const schemaDef = SCHEMA[i];
+            const schemaDef = SCHEMA[i];
+            if ((mask & (1 << schemaDef.bit)) !== 0) {
                 if (schemaDef.type === 'float') {
-                    const isF64 = hasF64Mask ? ((f64Mask & (1 << i)) !== 0) : !isLegacyF32;
+                    const isF64 = hasF64Mask ? ((f64Mask & (1 << schemaDef.bit)) !== 0) : !isLegacyF32;
                     if (isF64) {
                         outParams[schemaDef.key] = Number(view.getFloat64(offset).toPrecision(15)).toString();
                         offset += 8;
@@ -260,6 +276,11 @@ app.get(/^\/(?:svg|svg([A-Za-z0-9_-]+))$/, (req, res) => {
     const ta = (params.ta !== undefined && params.ta !== '') ? parseFloat(params.ta) : null;
     const cm = params.cm || 'real';
     const eom = params.eom || 'exact';
+    const push = (params.push !== undefined && params.push !== '') ? parseFloat(params.push) : 0;
+    const ps = params.ps || 'seller';
+    const pc = params.pc || 'CNY';
+    const per = parseFloat(params.per) || 1;
+    const pushTc = (push > 0 && isFinite(push)) ? push * per : 0;
     if (!ed) {
         res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
         return res.send(`<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="530" viewBox="50 50 1100 530" style="margin: auto; position: absolute; top: 0; left: 0; right: 0; bottom: 0;"><rect x="50" y="50" width="1100" height="530" rx="20" fill="#0d0d12"/><text x="600" y="315" fill="#ebd288" font-size="24" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif"></text></svg>`);
@@ -289,11 +310,25 @@ app.get(/^\/(?:svg|svg([A-Za-z0-9_-]+))$/, (req, res) => {
     }
     const remainingValueBase = (ra / totalCycleDays) * remainDays;
     const remainingValueTarget = remainingValueBase * er;
-    let showPremium = ta !== null;
+    let taVal = ta;
+    if (taVal === null) {
+        const paParam = (params.pa !== undefined && params.pa !== '') ? parseFloat(params.pa) : NaN;
+        if (!isNaN(paParam)) {
+            taVal = remainingValueTarget + paParam + (pushTc > 0 && ps === 'buyer' ? pushTc : 0);
+        } else {
+            let drParam = (params.dr !== undefined && params.dr !== '') ? parseFloat(params.dr) : NaN;
+            if (!isNaN(drParam)) {
+                if (drParam > 1 && drParam <= 10) drParam = drParam / 10;
+                else if (drParam > 10) drParam = drParam / 100;
+                taVal = remainingValueTarget * drParam + (pushTc > 0 && ps === 'buyer' ? pushTc : 0);
+            }
+        }
+    }
+    let showPremium = taVal !== null;
     let premiumAmount = 0;
     let premiumRate = 0;
     if (showPremium) {
-        premiumAmount = ta - remainingValueTarget;
+        premiumAmount = taVal - pushTc - remainingValueTarget;
         if (remainingValueTarget > 0) {
             premiumRate = (premiumAmount / remainingValueTarget) * 100;
         }
@@ -362,7 +397,7 @@ app.get(/^\/(?:svg|svg([A-Za-z0-9_-]+))$/, (req, res) => {
 <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" transform="translate(854, 68)" fill="#FFFFFF"/>
 <text x="1110" y="81" font-size="14" fill="#FFFFFF" text-anchor="end">YoungYannick/vps-remaining-value</text>
 </g>
-<text x="1110" y="110" font-size="15" opacity="0.4" text-anchor="end">汇率: 1 ${rc} = ${er.toFixed(4)} ${tc}   |   交易日期: ${td}</text>
+ <text x="1110" y="110" font-size="15" opacity="0.4" text-anchor="end">汇率: 1 ${rc} = ${er.toFixed(4)} ${tc}${pushTc > 0 && pc !== tc && pc !== rc ? ` · 1 ${pc} = ${per.toFixed(4)} ${tc}` : ''} | 交易日期: ${td}</text>
 <line x1="50" y1="145" x2="1150" y2="145" stroke="#FFFFFF" opacity="0.08"/>
 <g class="anim d1">
 <text x="90" y="280" font-size="16" fill="#FFFFFF" opacity="0.6">剩余价值 (${tc})</text>
@@ -387,13 +422,14 @@ app.get(/^\/(?:svg|svg([A-Za-z0-9_-]+))$/, (req, res) => {
 </linearGradient>
 </defs>
 <line x1="416" y1="190" x2="416" y2="435" stroke="#FFFFFF" opacity="0.08"/>
-<g class="anim d2">
-<text x="456" y="210" font-size="16" opacity="0.6">交易金额 (${tc})</text>
-<text x="456" y="280" font-size="60" font-weight="700" fill="url(#g)">${ta.toFixed(3)}</text>
+ <g class="anim d2">
+<text x="456" y="210" font-size="16" opacity="0.6">交易金额 (${tc})${pushTc > 0 && ps === 'buyer' ? ` <tspan fill="#FFD700" font-weight="700">含PUSH费</tspan>` : ''}</text>
+<text x="456" y="280" font-size="60" font-weight="700" fill="url(#g)">${taVal.toFixed(3)}</text>
 <text x="456" y="310" font-size="14" opacity="0.4">${premiumLabel}金额 (${tc})</text>
 <text x="456" y="340" font-size="22" font-weight="600" fill="${color}" dominant-baseline="central"><tspan fill="url(#symWave)">${sign}</tspan> ${Math.abs(premiumAmount).toFixed(3)}</text>
 <text x="456" y="390" font-size="14" opacity="0.4">${premiumLabel}幅度</text>
 <text x="456" y="420" font-size="22" font-weight="600" fill="${color}" dominant-baseline="central"><tspan fill="url(#symWave)">${sign}</tspan> ${Math.abs(premiumRate).toFixed(3)}%</text>
+${pushTc > 0 ? `<text x="456" y="452" font-size="13" opacity="0.6">PUSH费 ${push} ${pc}${pc !== tc ? ` ≈ ${pushTc.toFixed(3)} ${tc}` : ''} · <tspan fill="#FFD700" font-weight="700">${ps === 'buyer' ? '买家承担' : '卖家承担'}</tspan></text>` : ''}
 </g>`;
     }
     svg += `<line x1="${rightX - 40}" y1="190" x2="${rightX - 40}" y2="435" stroke="#FFFFFF" opacity="0.08"/>

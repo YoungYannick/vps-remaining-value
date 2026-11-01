@@ -181,7 +181,7 @@
         </div>
         <div class="input-group">
           <div class="field-header">
-            <label>溢价金额</label>
+            <label>溢价金额<span id="actual-pa" class="actual-mark"></span></label>
             <div class="help-icon tooltip-container">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
               <div class="tooltip">可选<br>正数表示溢价，负数表示折价</div>
@@ -191,13 +191,60 @@
         </div>
         <div class="input-group">
           <div class="field-header">
-            <label>交易折扣</label>
+            <label>交易折扣<span id="actual-dr" class="actual-mark"></span></label>
             <div class="help-icon tooltip-container">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
               <div class="tooltip">可选<br>支持多种输入格式，如：0.88 / 8.8 / 88</div>
             </div>
           </div>
           <input type="number" id="dr" step="0.01">
+        </div>
+      </div>
+      <div class="form-grid push-grid">
+        <div class="input-group">
+          <div class="field-header">
+            <label>PUSH费承担方</label>
+            <div class="help-icon tooltip-container">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+              <div class="tooltip">PUSH费由谁承担<br>卖家承担：交易金额不含PUSH费<br>买家承担：交易金额含PUSH费</div>
+            </div>
+          </div>
+          <div class="capsule-switch" id="ps-switch">
+            <div class="capsule-bg"></div>
+            <button type="button" class="ps-btn active" data-value="seller">卖家</button>
+            <button type="button" class="ps-btn" data-value="buyer">买家</button>
+            <input type="hidden" id="ps" value="seller">
+          </div>
+        </div>
+        <div class="input-group">
+          <div class="field-header">
+            <label>PUSH费</label>
+            <div class="help-icon tooltip-container">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+              <div class="tooltip">VPS过户手续费<br>为0时不参与任何计算<br>金色标记的字段为手动输入基准，其余自动联动</div>
+            </div>
+          </div>
+          <input type="number" id="push" step="0.01" value="0">
+        </div>
+        <div class="input-group">
+          <label>PUSH费货币</label>
+          <select id="pc">
+            <option value="AUD">澳元 (AUD)</option>
+            <option value="CAD">加元 (CAD)</option>
+            <option value="CHF">瑞士法郎 (CHF)</option>
+            <option value="CNY" selected>人民币 (CNY)</option>
+            <option value="EUR">欧元 (EUR)</option>
+            <option value="GBP">英镑 (GBP)</option>
+            <option value="HKD">港币 (HKD)</option>
+            <option value="INR">印度卢比 (INR)</option>
+            <option value="JPY">日元 (JPY)</option>
+            <option value="KRW">韩元 (KRW)</option>
+            <option value="NZD">新西兰元 (NZD)</option>
+            <option value="RUB">俄罗斯卢布 (RUB)</option>
+            <option value="SGD">新加坡元 (SGD)</option>
+            <option value="TWD">新台币 (TWD)</option>
+            <option value="USD">美元 (USD)</option>
+          </select>
         </div>
       </div>
       <div class="btn-group">
