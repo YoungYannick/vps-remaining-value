@@ -12,18 +12,27 @@ const img = document.getElementById('preview');
 const statusMsg = document.getElementById('status-msg');
 const rateDisplay = document.getElementById('rate-display');
 let exchangeRates = {};
-let currentRate = 1.0000;
+let currentRate = null;
+let rateLocked = false;
+let lockedPair = '';
 let lastTxField = 'ta';
 let urlPushRate = null;
+let pushRateLocked = false;
+let lockedPushPair = '';
 
 function getPushRate() {
     const pc = els.pc.value;
     const tc = els.tc.value;
+    if (pc === tc) return 1;
+    if (pushRateLocked && `${pc}_${tc}` === lockedPushPair && urlPushRate !== null && isFinite(urlPushRate) && urlPushRate > 0) {
+        return urlPushRate;
+    }
+    pushRateLocked = false;
     if (exchangeRates[pc] && exchangeRates[tc]) {
         return exchangeRates[tc] / exchangeRates[pc];
     }
-    if (urlPushRate !== null) return urlPushRate;
-    return 1;
+    if (urlPushRate !== null && isFinite(urlPushRate) && urlPushRate > 0) return urlPushRate;
+    return NaN;
 }
 function getPushAmountTc() {
     const v = parseFloat(els.push.value);
@@ -91,18 +100,28 @@ async function fetchRates() {
         updateRateField();
     } catch (e) {
         document.getElementById('rate-source').innerText = '数据来源: 获取失败';
+        updateRateField();
     }
 }
 function updateRateField() {
     const from = els.rc.value;
     const to = els.tc.value;
-    if (exchangeRates[from] && exchangeRates[to]) {
+    const cur = parseFloat(currentRate);
+    if (rateLocked && `${from}_${to}` === lockedPair && isFinite(cur) && cur > 0) {
+        update();
+        return;
+    }
+    rateLocked = false;
+    if (from === to) {
+        currentRate = 1;
+        rateDisplay.value = `1 ${from} = 1 ${to}`;
+    } else if (exchangeRates[from] && exchangeRates[to]) {
         const rate = exchangeRates[to] / exchangeRates[from];
         currentRate = rate.toFixed(4);
         rateDisplay.value = `1 ${from} = ${rate.toFixed(4)} ${to}`;
     } else {
-        currentRate = 1.0000;
-        rateDisplay.value = `1 ${from} = 1 ${to}`;
+        currentRate = null;
+        rateDisplay.value = '汇率不可用';
     }
     update();
 }
@@ -209,7 +228,8 @@ function getUrlParamsObj() {
             paramsObj[key] = els[key].value;
         }
     }
-    paramsObj['er'] = typeof currentRate === 'number' ? currentRate.toFixed(4) : parseFloat(currentRate).toFixed(4);
+    const erNum = parseFloat(currentRate);
+    if (isFinite(erNum) && erNum > 0) paramsObj['er'] = erNum.toFixed(4);
     ['ta', 'pa', 'dr'].forEach(k => {
         if (k !== lastTxField || els[k].value === '') delete paramsObj[k];
     });
@@ -221,7 +241,8 @@ function getUrlParamsObj() {
         if (els.pc.value === els.tc.value) {
             delete paramsObj.per;
         } else {
-            paramsObj['per'] = getPushRate().toFixed(4);
+            const pr = getPushRate();
+            if (isFinite(pr) && pr > 0) paramsObj['per'] = pr.toFixed(4);
         }
     } else {
         delete paramsObj.push;
@@ -321,7 +342,7 @@ function renderMarkdown(md) {
 }
 function buildMarkdownReport() {
     const rv = calculateRV();
-    if (rv <= 0) return '';
+    if (rv !== null && rv <= 0) return '';
     const { remainDays, totalCycleDays } = getRemainInfo();
     const ra = parseFloat(els.ra.value);
     const pd = parseInt(els.pd.value);
@@ -331,7 +352,8 @@ function buildMarkdownReport() {
     const pushTc = getPushAmountTc();
     const pushVal = parseFloat(els.push.value) || 0;
     const isBuyer = els.ps.value === 'buyer';
-    let rateLine = `1 ${rc} = ${parseFloat(currentRate).toFixed(4)} ${tc}`;
+    const erNum = parseFloat(currentRate);
+    let rateLine = (isFinite(erNum) && erNum > 0) ? `1 ${rc} = ${erNum.toFixed(4)} ${tc}` : '汇率不可用';
     if (pushTc > 0 && els.pc.value !== tc && els.pc.value !== rc) {
         rateLine += ` · 1 ${els.pc.value} = ${getPushRate().toFixed(4)} ${tc}`;
     }
@@ -346,7 +368,7 @@ function buildMarkdownReport() {
         ['交易日期', `${els.td.value}`]
     ];
     const rightRows = [];
-    if (hasTa) {
+    if (hasTa && rv !== null) {
         const premium = taVal - pushTc - rv;
         const sign = premium >= 0 ? '+' : '-';
         rightRows.push(['交易金额', `**${taVal.toFixed(3)} ${tc}**${pushTc > 0 && isBuyer ? '（含PUSH费）' : ''}`]);
@@ -354,7 +376,7 @@ function buildMarkdownReport() {
         rightRows.push(['溢价金额', `${sign}${Math.abs(premium).toFixed(3)} ${tc}`]);
         rightRows.push(['溢价幅度', `${sign}${Math.abs((premium / rv) * 100).toFixed(3)}%`]);
     } else {
-        rightRows.push(['剩余价值', `**${rv.toFixed(3)} ${tc}**`]);
+        rightRows.push(['剩余价值', rv !== null ? `**${rv.toFixed(3)} ${tc}**` : '--']);
     }
     if (pushTc > 0) {
         rightRows.push(['PUSH费', `${pushVal.toFixed(3)} ${els.pc.value}${els.pc.value !== tc ? ` ≈ ${pushTc.toFixed(3)} ${tc}` : ''} · **${isBuyer ? '买家承担' : '卖家承担'}**`]);
@@ -429,9 +451,11 @@ function getRemainInfo() {
 }
 function calculateRV() {
     if (!els.ra.value || !els.pd.value || !els.ed.value || !els.td.value) return 0;
+    const er = parseFloat(currentRate);
+    if (!isFinite(er) || er <= 0) return null;
     const ra = parseFloat(els.ra.value);
     const { remainDays, totalCycleDays } = getRemainInfo();
-    return (ra / totalCycleDays) * remainDays * currentRate;
+    return (ra / totalCycleDays) * remainDays * er;
 }
 els.dr.addEventListener('input', (e) => {
     lastTxField = 'dr';
@@ -531,7 +555,12 @@ Object.keys(els).forEach(key => {
     }
 });
 if (urlParams.has('per')) {
-    urlPushRate = parseFloat(urlParams.get('per'));
+    const perNum = parseFloat(urlParams.get('per'));
+    if (perNum !== null && isFinite(perNum) && perNum > 0) {
+        urlPushRate = perNum;
+        pushRateLocked = true;
+        lockedPushPair = `${els.pc.value || 'CNY'}_${els.tc.value || 'CNY'}`;
+    }
 }
 if (urlParams.has('ta')) {
     lastTxField = 'ta';
@@ -541,26 +570,56 @@ if (urlParams.has('ta')) {
     lastTxField = 'dr';
 }
 if (urlParams.has('er')) {
-    currentRate = parseFloat(urlParams.get('er')).toFixed(4);
+    const erNum = parseFloat(urlParams.get('er'));
     const from = els.rc.value || 'USD';
     const to = els.tc.value || 'CNY';
-    rateDisplay.value = `1 ${from} = ${currentRate} ${to}`;
+    if (isFinite(erNum) && erNum > 0) {
+        currentRate = erNum.toFixed(4);
+        rateLocked = true;
+        lockedPair = `${from}_${to}`;
+        rateDisplay.value = `1 ${from} = ${currentRate} ${to}`;
+    } else {
+        currentRate = null;
+        rateDisplay.value = '汇率不可用';
+    }
+    fetchRates();
     update();
 } else {
     fetchRates();
 }
+document.getElementById('share-tip').style.display = (rateLocked || pushRateLocked) ? 'block' : 'none';
+if (urlParams.has('ra') || urlParams.has('er')) {
+    setTimeout(() => {
+        document.querySelector('.display')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 300);
+}
 const refreshIcon = document.getElementById('refresh-icon');
 refreshIcon.addEventListener('click', async (e) => {
     refreshIcon.classList.add('spinning');
+    rateLocked = false;
+    pushRateLocked = false;
+    urlPushRate = null;
+    document.getElementById('share-tip').style.display = 'none';
     await fetchRates();
     const url = new URL(window.location.href);
+    let changed = false;
     if (url.searchParams.has('er')) {
         url.searchParams.delete('er');
-        window.history.replaceState({}, '', url.pathname + url.search);
+        changed = true;
     }
+    if (url.searchParams.has('per')) {
+        url.searchParams.delete('per');
+        changed = true;
+    }
+    if (changed) window.history.replaceState({}, '', url.pathname + url.search);
     setTimeout(() => refreshIcon.classList.remove('spinning'), 500);
 });
 document.getElementById('reset-btn').addEventListener('click', (e) => {
+    rateLocked = false;
+    pushRateLocked = false;
+    lockedPair = '';
+    lockedPushPair = '';
+    document.getElementById('share-tip').style.display = 'none';
     els.ra.value = '';
     els.rc.value = 'USD';
     els.pd.value = '365';
@@ -586,6 +645,9 @@ document.getElementById('reset-btn').addEventListener('click', (e) => {
     window.history.replaceState({}, '', window.location.pathname);
     fetchRates();
     tempText(e.target, '已重置');
+});
+document.getElementById('share-tip').addEventListener('click', () => {
+    document.getElementById('reset-btn').click();
 });
 const cmSwitch = document.getElementById('cm-switch');
 const cmBtns = document.querySelectorAll('.cm-btn');

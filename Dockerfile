@@ -5,4 +5,4 @@ RUN npm ci --omit=dev
 COPY public/ ./public/
 COPY server.js ./
 EXPOSE 45867
-CMD ["npm", "run", "start"]
+CMD ["node", "server.js"]

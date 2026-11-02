@@ -419,6 +419,28 @@ button.alt-btn:hover {
     margin-top: 8px;
     text-align: right;
 }
+.share-tip {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    max-width: min(92vw, 520px);
+    color: var(--gold);
+    background: var(--bg);
+    border: 1px solid var(--gold-dim);
+    border-radius: 10px;
+    padding: 10px 18px;
+    font-size: 13px;
+    text-align: center;
+    cursor: pointer;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45), 0 0 12px var(--gold-glow);
+    animation: tip-in .3s ease;
+}
+@keyframes tip-in {
+    from { opacity: 0; transform: translateX(-50%) translateY(-12px); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
 #preview {
     display: none;
 }
@@ -578,6 +600,7 @@ button.alt-btn:hover {
     .header { font-size: 20px; margin-bottom: 20px; }
     .form-grid { grid-template-columns: 1fr; gap: 16px; }
     .display { min-height: 480px; border-radius: 12px; }
+    .svg-pane { min-height: 0; }
     .btn-group { gap: 12px; margin-top: 24px; }
     button { min-width: 0; padding: 10px 8px; font-size: 12px; }
     .tooltip { white-space: normal; width: max-content; max-width: 200px; text-align: center; }

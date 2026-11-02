@@ -79,9 +79,9 @@ function normalizeRates(data) {
 }
 async function fetchRatesFromApis() {
     const sources = [];
-    if (V6_API_KEY) {
-        sources.push({ url: `https://v6.exchangerate-api.com/v6/${V6_API_KEY}/latest/USD`, name: 'ExchangeRate-API V6', ttl: 14400000 });
-    }
+    // if (V6_API_KEY) {
+    //     sources.push({ url: `https://v6.exchangerate-api.com/v6/${V6_API_KEY}/latest/USD`, name: 'ExchangeRate-API V6', ttl: 14400000 });
+    // }
     sources.push(
         { url: 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json', name: 'Currency-API (jsDelivr)', ttl: 14400000 },
         { url: 'https://latest.currency-api.pages.dev/v1/currencies/usd.json', name: 'Currency-API (Pages)', ttl: 14400000 },
@@ -175,7 +175,18 @@ const SCHEMA = [
 ];
 const daysToDate = (days) => new Date(days * 86400000).toISOString().split('T')[0];
 const validCurrency = (c, def) => SUPPORTED_CURRENCIES.includes(c) ? c : def;
-const validDate = (s) => (/^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(new Date(s + 'T00:00:00Z').getTime())) ? s : null;
+const validDate = (s) => {
+    if (typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+    const [y, m, d] = s.split('-').map(Number);
+    if (y < 2000 || y > 3000) return null;
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return null;
+    return s;
+};
+const validRate = (v) => {
+    const n = parseFloat(v);
+    return (isFinite(n) && n > 0) ? n : null;
+};
 const getNowDateStr = () => new Date(Date.now() + TZ_OFFSET * 3600000).toISOString().split('T')[0];
 function decodeBase64Params(base64UrlStr) {
     if (!base64UrlStr) return {};
@@ -312,14 +323,14 @@ app.get(/^\/(?:svg|svg([A-Za-z0-9_-]+))$/, (req, res) => {
     const ed = validDate(params.ed);
     const td = validDate(params.td) || getNowDateStr();
     const tc = validCurrency(params.tc, 'CNY');
-    const er = parseFloat(params.er) || 1;
+    const er = validRate(params.er) ?? (rc === tc ? 1 : null);
     const ta = (params.ta !== undefined && params.ta !== '') ? parseFloat(params.ta) : null;
     const cm = params.cm || 'real';
     const eom = params.eom || 'exact';
     const push = (params.push !== undefined && params.push !== '') ? parseFloat(params.push) : 0;
     const ps = params.ps || 'seller';
     const pc = validCurrency(params.pc, 'CNY');
-    const per = parseFloat(params.per) || 1;
+    const per = validRate(params.per) ?? (pc === tc ? 1 : 0);
     const pushTc = (push > 0 && isFinite(push)) ? push * per : 0;
     if (!ed) {
         res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
@@ -350,9 +361,9 @@ app.get(/^\/(?:svg|svg([A-Za-z0-9_-]+))$/, (req, res) => {
         totalCycleDays = Math.round((endMs - d.getTime()) / (1000 * 60 * 60 * 24));
     }
     const remainingValueBase = (ra / totalCycleDays) * remainDays;
-    const remainingValueTarget = remainingValueBase * er;
+    const remainingValueTarget = er !== null ? remainingValueBase * er : null;
     let taVal = ta;
-    if (taVal === null) {
+    if (taVal === null && remainingValueTarget !== null) {
         const paParam = (params.pa !== undefined && params.pa !== '') ? parseFloat(params.pa) : NaN;
         if (!isNaN(paParam)) {
             taVal = remainingValueTarget + paParam + (pushTc > 0 && ps === 'buyer' ? pushTc : 0);
@@ -365,7 +376,7 @@ app.get(/^\/(?:svg|svg([A-Za-z0-9_-]+))$/, (req, res) => {
             }
         }
     }
-    let showPremium = taVal !== null;
+    let showPremium = taVal !== null && remainingValueTarget !== null;
     let premiumAmount = 0;
     let premiumRate = 0;
     if (showPremium) {
@@ -438,11 +449,11 @@ app.get(/^\/(?:svg|svg([A-Za-z0-9_-]+))$/, (req, res) => {
 <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" transform="translate(854, 68)" fill="#FFFFFF"/>
 <text x="1110" y="81" font-size="14" fill="#FFFFFF" text-anchor="end">YoungYannick/vps-remaining-value</text>
 </g>
- <text x="1110" y="110" font-size="15" opacity="0.4" text-anchor="end">汇率: 1 ${rc} = ${er.toFixed(4)} ${tc}${pushTc > 0 && pc !== tc && pc !== rc ? ` · 1 ${pc} = ${per.toFixed(4)} ${tc}` : ''} | 交易日期: ${td}</text>
+ <text x="1110" y="110" font-size="15" opacity="0.4" text-anchor="end">${er !== null ? `汇率: 1 ${rc} = ${er.toFixed(4)} ${tc}` : '汇率: 不可用'}${pushTc > 0 && pc !== tc && pc !== rc ? ` · 1 ${pc} = ${per.toFixed(4)} ${tc}` : ''} | 交易日期: ${td}</text>
 <line x1="50" y1="145" x2="1150" y2="145" stroke="#FFFFFF" opacity="0.08"/>
 <g class="anim d1">
 <text x="90" y="280" font-size="16" fill="#FFFFFF" opacity="0.6">剩余价值 (${tc})</text>
-<text x="90" y="350" font-size="60" font-weight="700" fill="url(#g)">${remainingValueTarget.toFixed(3)}</text>
+<text x="90" y="350" font-size="60" font-weight="700" fill="url(#g)">${remainingValueTarget !== null ? remainingValueTarget.toFixed(3) : '--'}</text>
 </g>`;
 
     if (showPremium) {
@@ -477,7 +488,7 @@ ${pushTc > 0 ? `<text x="456" y="452" font-size="13" opacity="0.6">PUSH费 ${pus
 <g class="anim d3">
 <text x="${rightX}" y="205" font-size="14" opacity="0.4">续费金额</text>
 <text x="${rightX}" y="240" font-size="22" font-weight="600" dominant-baseline="central">${ra.toFixed(3)} ${rc}${cycleText}</text>
-${rc !== tc ? `<text x="${rightX}" y="270" font-size="14" opacity="0.6">≈ ${(ra * er).toFixed(3)} ${tc}${cycleText}</text>` : ''}
+${rc !== tc && er !== null ? `<text x="${rightX}" y="270" font-size="14" opacity="0.6">≈ ${(ra * er).toFixed(3)} ${tc}${cycleText}</text>` : ''}
 <text x="${rightX}" y="310" font-size="14" opacity="0.4">剩余天数</text>
 <text x="${rightX}" y="340" font-size="22" font-weight="600" dominant-baseline="central">${remainDays} / ${totalCycleDays} 天</text>
 <text x="${rightX}" y="390" font-size="14" opacity="0.4">到期时间</text>
