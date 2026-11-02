@@ -16,7 +16,13 @@ app.set('trust proxy', true);
 const crypto = require('crypto');
 const cookieParser = require('cookie-parser');
 const SECRET_KEY = process.env.SECRET_KEY;
+if (!SECRET_KEY) {
+    console.error('[启动失败] 未配置 SECRET_KEY，请在 .env 或环境变量中设置');
+    process.exit(1);
+}
 const V6_API_KEY = process.env.V6_API_KEY;
+const TZ_OFFSET_H = parseInt(process.env.TZ_OFFSET);
+const TZ_OFFSET = isNaN(TZ_OFFSET_H) ? 8 : TZ_OFFSET_H;
 let ratesCache = null;
 let ratesCacheTime = 0;
 let isRefreshing = false;
@@ -50,12 +56,12 @@ async function fetchOnce(url) {
             },
             signal: controller.signal
         });
-        clearTimeout(timeoutId);
         if (!response.ok) return null;
         return await response.json();
     } catch (e) {
-        clearTimeout(timeoutId);
         return null;
+    } finally {
+        clearTimeout(timeoutId);
     }
 }
 function normalizeRates(data) {
@@ -74,11 +80,11 @@ function normalizeRates(data) {
 async function fetchRatesFromApis() {
     const sources = [];
     if (V6_API_KEY) {
-        sources.push({ url: `https://v6.exchangerate-api.com/v6/${V6_API_KEY}/latest/USD`, name: 'ExchangeRate-API V6', ttl: 3600000 });
+        sources.push({ url: `https://v6.exchangerate-api.com/v6/${V6_API_KEY}/latest/USD`, name: 'ExchangeRate-API V6', ttl: 14400000 });
     }
     sources.push(
-        { url: 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json', name: 'Currency-API (jsDelivr)', ttl: 3600000 },
-        { url: 'https://latest.currency-api.pages.dev/v1/currencies/usd.json', name: 'Currency-API (Pages)', ttl: 3600000 },
+        { url: 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json', name: 'Currency-API (jsDelivr)', ttl: 14400000 },
+        { url: 'https://latest.currency-api.pages.dev/v1/currencies/usd.json', name: 'Currency-API (Pages)', ttl: 14400000 },
         { url: 'https://api.exchangerate.fun/latest?base=USD', name: 'ExchangeRate.fun', ttl: 3600000 },
         { url: 'https://api.exchangerate-api.com/v4/latest/USD', name: 'ExchangeRate-API V4', ttl: 300000 }
     );
@@ -122,8 +128,7 @@ app.use((req, res, next) => {
         const isStatic = skipExtensions.includes(ext) || urlPath === '/favicon.ico';
         if (!isStatic) {
             const ip = getClientIp(req);
-            const d = new Date();
-            const bjTime = new Date(d.getTime() + (d.getTimezoneOffset() * 60000) + 28800000).toISOString().replace('T', ' ').replace('Z', '');
+            const bjTime = new Date(Date.now() + TZ_OFFSET * 3600000).toISOString().replace('T', ' ').replace('Z', '');
             console.log(`[${bjTime}] [${ip}] [${req.method}] [${res.statusCode}] ${req.originalUrl}`);
         }
     });
@@ -169,6 +174,9 @@ const SCHEMA = [
     { key: 'per', type: 'float', bit: 17 }
 ];
 const daysToDate = (days) => new Date(days * 86400000).toISOString().split('T')[0];
+const validCurrency = (c, def) => SUPPORTED_CURRENCIES.includes(c) ? c : def;
+const validDate = (s) => (/^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(new Date(s + 'T00:00:00Z').getTime())) ? s : null;
+const getNowDateStr = () => new Date(Date.now() + TZ_OFFSET * 3600000).toISOString().split('T')[0];
 function decodeBase64Params(base64UrlStr) {
     if (!base64UrlStr) return {};
     let b64 = base64UrlStr.replace(/-/g, '+').replace(/_/g, '/');
@@ -240,7 +248,7 @@ function getSiteUrl(req) {
     return `${req.protocol}://${host}`;
 }
 app.get('/', (req, res) => {
-    res.send(indexTemplate.replace(/\{\{siteUrl\}\}/g, getSiteUrl(req)));
+    res.send(indexTemplate.replace(/\{\{siteUrl\}\}/g, getSiteUrl(req)).replace(/\{\{tzOffset\}\}/g, String(TZ_OFFSET)));
 });
 app.get('/robots.txt', (req, res) => {
     res.type('text/plain');
@@ -299,18 +307,18 @@ app.get(/^\/(?:svg|svg([A-Za-z0-9_-]+))$/, (req, res) => {
         params = decodeBase64Params(req.params[0]);
     }
     const ra = parseFloat(params.ra) || 0;
-    const rc = params.rc || 'USD';
+    const rc = validCurrency(params.rc, 'USD');
     const pd = parseInt(params.pd) || 365;
-    const ed = params.ed;
-    const td = params.td || new Date().toISOString().split('T')[0];
-    const tc = params.tc || 'CNY';
+    const ed = validDate(params.ed);
+    const td = validDate(params.td) || getNowDateStr();
+    const tc = validCurrency(params.tc, 'CNY');
     const er = parseFloat(params.er) || 1;
     const ta = (params.ta !== undefined && params.ta !== '') ? parseFloat(params.ta) : null;
     const cm = params.cm || 'real';
     const eom = params.eom || 'exact';
     const push = (params.push !== undefined && params.push !== '') ? parseFloat(params.push) : 0;
     const ps = params.ps || 'seller';
-    const pc = params.pc || 'CNY';
+    const pc = validCurrency(params.pc, 'CNY');
     const per = parseFloat(params.per) || 1;
     const pushTc = (push > 0 && isFinite(push)) ? push * per : 0;
     if (!ed) {
@@ -323,20 +331,21 @@ app.get(/^\/(?:svg|svg([A-Za-z0-9_-]+))$/, (req, res) => {
     const remainDays = Math.ceil(remainMs / (1000 * 60 * 60 * 24));
     let totalCycleDays = pd;
     if (cm === 'real') {
-        const d = new Date(ed);
-        const day = d.getDate();
-        if (pd === 30) d.setMonth(d.getMonth() - 1);
-        else if (pd === 90) d.setMonth(d.getMonth() - 3);
-        else if (pd === 180) d.setMonth(d.getMonth() - 6);
-        else if (pd === 365) d.setFullYear(d.getFullYear() - 1);
-        else if (pd === 730) d.setFullYear(d.getFullYear() - 2);
-        else if (pd === 1095) d.setFullYear(d.getFullYear() - 3);
-        else if (pd === 1825) d.setFullYear(d.getFullYear() - 5);
-        if ((pd === 30 || pd === 90 || pd === 180) && d.getDate() !== day) {
-            d.setDate(0);
+        const d = new Date(ed + 'T00:00:00Z');
+        const day = d.getUTCDate();
+        if (pd === 30) d.setUTCMonth(d.getUTCMonth() - 1);
+        else if (pd === 90) d.setUTCMonth(d.getUTCMonth() - 3);
+        else if (pd === 180) d.setUTCMonth(d.getUTCMonth() - 6);
+        else if (pd === 365) d.setUTCFullYear(d.getUTCFullYear() - 1);
+        else if (pd === 730) d.setUTCFullYear(d.getUTCFullYear() - 2);
+        else if (pd === 1095) d.setUTCFullYear(d.getUTCFullYear() - 3);
+        else if (pd === 1825) d.setUTCFullYear(d.getUTCFullYear() - 5);
+        else d.setUTCDate(d.getUTCDate() - pd);
+        if ((pd === 30 || pd === 90 || pd === 180) && d.getUTCDate() !== day) {
+            d.setUTCDate(0);
         }
         if (eom === 'eom' && (pd === 30 || pd === 90 || pd === 180)) {
-            d.setFullYear(d.getFullYear(), d.getMonth() + 1, 0);
+            d.setUTCFullYear(d.getUTCFullYear(), d.getUTCMonth() + 1, 0);
         }
         totalCycleDays = Math.round((endMs - d.getTime()) / (1000 * 60 * 60 * 24));
     }
@@ -509,4 +518,5 @@ app.use((req, res) => {
 });
 app.listen(45867, () => {
     console.log(`[${new Date().toISOString()}] Server is running at http://localhost:45867`);
+    console.log(`V6_API_KEY: ${V6_API_KEY ? '已配置' : '未配置'} | TZ_OFFSET: UTC${TZ_OFFSET >= 0 ? '+' : ''}${TZ_OFFSET}`);
 });

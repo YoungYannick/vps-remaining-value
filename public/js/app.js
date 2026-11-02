@@ -2,12 +2,12 @@ const els = ['ra', 'rc', 'pd', 'cm', 'ed', 'td', 'dr', 'pa', 'ta', 'tc', 'eom', 
     acc[id] = document.getElementById(id);
     return acc;
 }, {});
-const d = new Date();
-const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
-const bjTime = new Date(utc + (8 * 60 * 60 * 1000));
-els.td.value = bjTime.toISOString().split('T')[0];
-const tomorrow = new Date(bjTime.getTime() + (24 * 60 * 60 * 1000));
-els.ed.value = tomorrow.toISOString().split('T')[0];
+const TZ_OFFSET = (typeof window.TZ_OFFSET === 'number' && !isNaN(window.TZ_OFFSET)) ? window.TZ_OFFSET : 8;
+const nowShifted = Date.now() + TZ_OFFSET * 3600000;
+els.td.value = new Date(nowShifted).toISOString().split('T')[0];
+els.ed.value = new Date(nowShifted + 86400000).toISOString().split('T')[0];
+console.log(`[VPS-RV] 服务端时区: UTC${TZ_OFFSET >= 0 ? '+' : ''}${TZ_OFFSET} | 当前(按此时区): ${new Date(nowShifted).toISOString().replace('T', ' ').slice(0, 19)} | 交易日期默认: ${els.td.value} | 到期默认: ${els.ed.value}`);
+console.log(`[VPS-RV] 浏览器本地时区: ${Intl.DateTimeFormat().resolvedOptions().timeZone} | 本地时间: ${new Date().toLocaleString()}`);
 const img = document.getElementById('preview');
 const statusMsg = document.getElementById('status-msg');
 const rateDisplay = document.getElementById('rate-display');
@@ -407,21 +407,21 @@ function getRemainInfo() {
     const remainDays = Math.max(0, Math.ceil((endMs - transMs) / (1000 * 60 * 60 * 24)));
     let totalCycleDays = pd;
     if (els.cm && els.cm.value === 'real') {
-        const d = new Date(els.ed.value);
-        const day = d.getDate();
-        if (pd === 30) d.setMonth(d.getMonth() - 1);
-        else if (pd === 90) d.setMonth(d.getMonth() - 3);
-        else if (pd === 180) d.setMonth(d.getMonth() - 6);
-        else if (pd === 365) d.setFullYear(d.getFullYear() - 1);
-        else if (pd === 730) d.setFullYear(d.getFullYear() - 2);
-        else if (pd === 1095) d.setFullYear(d.getFullYear() - 3);
-        else if (pd === 1825) d.setFullYear(d.getFullYear() - 5);
-        else d.setDate(d.getDate() - pd);
-        if ((pd === 30 || pd === 90 || pd === 180) && d.getDate() !== day) {
-            d.setDate(0);
+        const d = new Date(els.ed.value + 'T00:00:00Z');
+        const day = d.getUTCDate();
+        if (pd === 30) d.setUTCMonth(d.getUTCMonth() - 1);
+        else if (pd === 90) d.setUTCMonth(d.getUTCMonth() - 3);
+        else if (pd === 180) d.setUTCMonth(d.getUTCMonth() - 6);
+        else if (pd === 365) d.setUTCFullYear(d.getUTCFullYear() - 1);
+        else if (pd === 730) d.setUTCFullYear(d.getUTCFullYear() - 2);
+        else if (pd === 1095) d.setUTCFullYear(d.getUTCFullYear() - 3);
+        else if (pd === 1825) d.setUTCFullYear(d.getUTCFullYear() - 5);
+        else d.setUTCDate(d.getUTCDate() - pd);
+        if ((pd === 30 || pd === 90 || pd === 180) && d.getUTCDate() !== day) {
+            d.setUTCDate(0);
         }
         if (els.eom && els.eom.value === 'eom' && (pd === 30 || pd === 90 || pd === 180)) {
-            d.setFullYear(d.getFullYear(), d.getMonth() + 1, 0);
+            d.setUTCFullYear(d.getUTCFullYear(), d.getUTCMonth() + 1, 0);
         }
         totalCycleDays = Math.round((endMs - d.getTime()) / (1000 * 60 * 60 * 24));
     }
@@ -569,12 +569,9 @@ document.getElementById('reset-btn').addEventListener('click', (e) => {
     document.getElementById('eom-group').style.display = 'none';
     initEomCapsule();
     initCapsule();
-    const d = new Date();
-    const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
-    const bjTime = new Date(utc + (8 * 60 * 60 * 1000));
-    els.td.value = bjTime.toISOString().split('T')[0];
-    const tomorrow = new Date(bjTime.getTime() + (24 * 60 * 60 * 1000));
-    els.ed.value = tomorrow.toISOString().split('T')[0];
+    const nowShifted = Date.now() + TZ_OFFSET * 3600000;
+    els.td.value = new Date(nowShifted).toISOString().split('T')[0];
+    els.ed.value = new Date(nowShifted + 86400000).toISOString().split('T')[0];
     els.ta.value = '';
     els.dr.value = '';
     els.pa.value = '';
@@ -636,9 +633,9 @@ eomBtns.forEach(btn => {
 });
 function checkEomVisibility() {
     if (!els.ed.value) return;
-    const d = new Date(els.ed.value);
-    const nextDay = new Date(d.getTime() + 24 * 60 * 60 * 1000);
-    if (cmInput.value === 'real' && nextDay.getDate() === 1) {
+    const d = new Date(els.ed.value + 'T00:00:00Z');
+    const nextDay = new Date(d.getTime() + 86400000);
+    if (cmInput.value === 'real' && nextDay.getUTCDate() === 1) {
         eomGroup.style.display = 'flex';
     } else {
         eomGroup.style.display = 'none';
