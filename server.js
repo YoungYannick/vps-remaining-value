@@ -79,9 +79,9 @@ function normalizeRates(data) {
 }
 async function fetchRatesFromApis() {
     const sources = [];
-    // if (V6_API_KEY) {
-    //     sources.push({ url: `https://v6.exchangerate-api.com/v6/${V6_API_KEY}/latest/USD`, name: 'ExchangeRate-API V6', ttl: 14400000 });
-    // }
+    if (V6_API_KEY) {
+        sources.push({ url: `https://v6.exchangerate-api.com/v6/${V6_API_KEY}/latest/USD`, name: 'ExchangeRate-API V6', ttl: 14400000 });
+    }
     sources.push(
         { url: 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json', name: 'Currency-API (jsDelivr)', ttl: 14400000 },
         { url: 'https://latest.currency-api.pages.dev/v1/currencies/usd.json', name: 'Currency-API (Pages)', ttl: 14400000 },
