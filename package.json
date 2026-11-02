@@ -1,6 +1,6 @@
 {
   "name": "vps-remaining-value",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "bin": "server.js",
   "scripts": {
     "start": "node server.js",

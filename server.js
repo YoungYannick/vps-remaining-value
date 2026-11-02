@@ -19,6 +19,86 @@ const SECRET_KEY = process.env.SECRET_KEY;
 const V6_API_KEY = process.env.V6_API_KEY;
 let ratesCache = null;
 let ratesCacheTime = 0;
+let isRefreshing = false;
+const SUPPORTED_CURRENCIES = ['AUD', 'CAD', 'CHF', 'CNY', 'EUR', 'GBP', 'HKD', 'INR', 'JPY', 'KRW', 'NZD', 'RUB', 'SGD', 'TWD', 'USD'];
+const FALLBACK_RATES = {
+    "AUD": 1.44,
+    "CAD": 1.42,
+    "CHF": 0.808,
+    "CNY": 6.78,
+    "EUR": 0.876,
+    "GBP": 0.75,
+    "HKD": 7.84,
+    "INR": 95.44,
+    "JPY": 161.80,
+    "KRW": 1502.98,
+    "NZD": 1.73,
+    "RUB": 76.40,
+    "SGD": 1.29,
+    "TWD": 32.08,
+    "USD": 1
+};
+async function fetchOnce(url) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+    try {
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+                'Accept': 'application/json, text/plain, */*',
+                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
+            },
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        if (!response.ok) return null;
+        return await response.json();
+    } catch (e) {
+        clearTimeout(timeoutId);
+        return null;
+    }
+}
+function normalizeRates(data) {
+    if (data.rates) return data.rates;
+    if (data.conversion_rates) return data.conversion_rates;
+    if (data.usd && typeof data.usd === 'object') {
+        const rates = {};
+        for (const cur of SUPPORTED_CURRENCIES) {
+            const v = data.usd[cur.toLowerCase()];
+            if (typeof v === 'number') rates[cur] = v;
+        }
+        return Object.keys(rates).length >= 15 ? rates : null;
+    }
+    return null;
+}
+async function fetchRatesFromApis() {
+    const sources = [];
+    if (V6_API_KEY) {
+        sources.push({ url: `https://v6.exchangerate-api.com/v6/${V6_API_KEY}/latest/USD`, name: 'ExchangeRate-API V6', ttl: 3600000 });
+    }
+    sources.push(
+        { url: 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json', name: 'Currency-API (jsDelivr)', ttl: 3600000 },
+        { url: 'https://latest.currency-api.pages.dev/v1/currencies/usd.json', name: 'Currency-API (Pages)', ttl: 3600000 },
+        { url: 'https://api.exchangerate.fun/latest?base=USD', name: 'ExchangeRate.fun', ttl: 3600000 },
+        { url: 'https://api.exchangerate-api.com/v4/latest/USD', name: 'ExchangeRate-API V4', ttl: 300000 }
+    );
+    for (const api of sources) {
+        const data = await fetchOnce(api.url);
+        if (!data) continue;
+        const rates = normalizeRates(data);
+        if (rates) {
+            ratesCache = { source: api.name, rates, cachedAt: Date.now() };
+            ratesCacheTime = Date.now() + api.ttl;
+            return ratesCache;
+        }
+    }
+    return null;
+}
+function refreshInBackground() {
+    if (isRefreshing) return;
+    isRefreshing = true;
+    fetchRatesFromApis().finally(() => { isRefreshing = false; });
+}
 const getClientIp = (req) => {
     const cf = req.headers['cf-connecting-ip'];
     if (cf) return cf.split(',')[0].trim();
@@ -195,67 +275,19 @@ app.get('/api/rates', async (req, res) => {
             rates: ratesCache.rates
         });
     }
-    const apis = [
-        { url: 'https://api.exchangerate.fun/latest?base=USD', name: 'ExchangeRate.fun', ttl: 3600000 },
-        { url: `https://v6.exchangerate-api.com/v6/${V6_API_KEY}/latest/USD`, name: 'ExchangeRate-API V6', ttl: 3600000 },
-        { url: 'https://api.exchangerate-api.com/v4/latest/USD', name: 'ExchangeRate-API V4', ttl: 300000 }
-    ];
-    for (const api of apis) {
-        for (let attempt = 0; attempt < 3; attempt++) {
-            try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 5000);
-                const response = await fetch(api.url, {
-                    headers: {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-                        'Accept': 'application/json, text/plain, */*',
-                        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-                        'Sec-Fetch-Dest': 'empty',
-                        'Sec-Fetch-Mode': 'cors',
-                        'Sec-Fetch-Site': 'cross-site'
-                    },
-                    signal: controller.signal
-                });
-                clearTimeout(timeoutId);
-                if (!response.ok) throw new Error();
-                const data = await response.json();
-                if (data.rates || data.conversion_rates) {
-                    ratesCache = {
-                        source: api.name,
-                        rates: data.rates || data.conversion_rates,
-                        cachedAt: Date.now()
-                    };
-                    ratesCacheTime = Date.now() + api.ttl;
-                    return res.json({
-                        source: api.name,
-                        rates: ratesCache.rates
-                    });
-                }
-            } catch (e) {}
-        }
+    if (ratesCache) {
+        refreshInBackground();
+        return res.json({
+            source: `${ratesCache.source} (后台更新中)`,
+            rates: ratesCache.rates
+        });
     }
-    const fallbackRates = {
-        "AUD": 1.44,
-        "CAD": 1.42,
-        "CHF": 0.808,
-        "CNY": 6.78,
-        "EUR": 0.876,
-        "GBP": 0.75,
-        "HKD": 7.84,
-        "INR": 95.44,
-        "JPY": 161.80,
-        "KRW": 1502.98,
-        "NZD": 1.73,
-        "RUB": 76.40,
-        "SGD": 1.29,
-        "TWD": 32.08,
-        "USD": 1
-    };
-    ratesCache = {
-        source: '离线备用汇率',
-        rates: fallbackRates,
-        cachedAt: Date.now()
-    };
+    const result = await fetchRatesFromApis();
+    if (result) {
+        return res.json({ source: result.source, rates: result.rates });
+    }
+    ratesCache = { source: '离线备用汇率', rates: FALLBACK_RATES, cachedAt: Date.now() };
+    ratesCacheTime = Date.now() + 300000;
     return res.json({
         source: ratesCache.source,
         rates: ratesCache.rates
