@@ -444,12 +444,12 @@ app.get(/^\/(?:svg|svg([A-Za-z0-9_-]+))$/, (req, res) => {
 <rect x="50" y="50" width="1100" height="530" rx="20" fill="none" stroke="url(#g)" stroke-width="1.5" opacity="0.15"/>
 <g class="f" fill="#FFFFFF">
 <image x="90" y="72" width="48" height="48" href="${logoBase64}"/>
-<text x="152" y="110" font-size="28" font-weight="700" fill="url(#textShine)" letter-spacing="1">VPS Remaining Value</text>
+<text x="152" y="110" font-size="28" font-weight="700" fill="url(#textShine)" letter-spacing="1">${showPremium ? 'VPS Trade Value' : 'VPS Remaining Value'}</text>
 <g opacity="0.4">
 <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" transform="translate(854, 68)" fill="#FFFFFF"/>
 <text x="1110" y="81" font-size="14" fill="#FFFFFF" text-anchor="end">YoungYannick/vps-remaining-value</text>
 </g>
- <text x="1110" y="110" font-size="15" opacity="0.4" text-anchor="end">${er !== null ? `汇率: 1 ${rc} = ${er.toFixed(4)} ${tc}` : '汇率: 不可用'}${pushTc > 0 && pc !== tc && pc !== rc ? ` · 1 ${pc} = ${per.toFixed(4)} ${tc}` : ''} | 交易日期: ${td}</text>
+ <text x="1110" y="110" font-size="15" opacity="0.4" text-anchor="end">${er !== null ? `汇率: 1 ${rc} = ${er.toFixed(4)} ${tc}` : '汇率: 不可用'}${pushTc > 0 && pc !== tc && pc !== rc ? ` · 1 ${pc} = ${per.toFixed(4)} ${tc}` : ''} | ${showPremium ? '交易日期' : '计算日期'}: ${td}</text>
 <line x1="50" y1="145" x2="1150" y2="145" stroke="#FFFFFF" opacity="0.08"/>
 <g class="anim d1">
 <text x="90" y="280" font-size="16" fill="#FFFFFF" opacity="0.6">剩余价值 (${tc})</text>

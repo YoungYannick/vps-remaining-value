@@ -265,7 +265,7 @@ function getUrl() {
 }
 const mdPreview = document.getElementById('md-preview');
 const PD_TEXT = { 30: '月付', 90: '季付', 180: '半年付', 365: '年付', 730: '两年付', 1095: '三年付', 1825: '五年付' };
-let mdReportSource = '';
+let mdTextSource = '';
 function escapeHtml(str) {
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
@@ -340,58 +340,68 @@ function renderMarkdown(md) {
     closeList();
     return html;
 }
-function buildMarkdownReport() {
+function buildMarkdownText() {
     const rv = calculateRV();
     if (rv !== null && rv <= 0) return '';
     const { remainDays, totalCycleDays } = getRemainInfo();
     const ra = parseFloat(els.ra.value);
-    const pd = parseInt(els.pd.value);
-    const cycleText = PD_TEXT[pd] || `${pd} 天`;
+    const cycleText = PD_TEXT[parseInt(els.pd.value)];
     const rc = els.rc.value;
     const tc = els.tc.value;
     const pushTc = getPushAmountTc();
     const pushVal = parseFloat(els.push.value) || 0;
     const isBuyer = els.ps.value === 'buyer';
     const erNum = parseFloat(currentRate);
-    let rateLine = (isFinite(erNum) && erNum > 0) ? `1 ${rc} = ${erNum.toFixed(4)} ${tc}` : '汇率不可用';
-    if (pushTc > 0 && els.pc.value !== tc && els.pc.value !== rc) {
-        rateLine += ` · 1 ${els.pc.value} = ${getPushRate().toFixed(4)} ${tc}`;
-    }
     const taVal = parseFloat(els.ta.value);
     const hasTa = !isNaN(taVal);
+    let rateLine = (isFinite(erNum) && erNum > 0) ? `1 ${rc} = ${erNum.toFixed(4)} ${tc}` : '汇率不可用';
+    if (hasTa && rv !== null && pushTc > 0 && els.pc.value !== tc && els.pc.value !== rc) {
+        const pr = getPushRate();
+        if (isFinite(pr)) rateLine += ` · 1 ${els.pc.value} = ${pr.toFixed(4)} ${tc}`;
+    }
     const pct = totalCycleDays > 0 ? (remainDays / totalCycleDays) * 100 : 0;
     const leftRows = [
-        ['续费金额', `${ra.toFixed(3)} ${rc} · ${cycleText}`],
-        ['计费周期', `${totalCycleDays} 天`],
+        ['续费金额', `${ra.toFixed(3)} ${rc}`],
+        ['计费周期', cycleText ? `${cycleText}（${totalCycleDays} 天）` : `${totalCycleDays} 天`],
         ['到期时间', `${els.ed.value}（余 ${remainDays} 天）`],
-        ['剩余比例', `${pct.toFixed(3)}%`],
-        ['交易日期', `${els.td.value}`]
+        ['剩余比例', `${pct.toFixed(3)}%`]
     ];
     const rightRows = [];
-    if (hasTa && rv !== null) {
+    const hasTrade = hasTa && rv !== null;
+    if (hasTrade) {
         const premium = taVal - pushTc - rv;
         const sign = premium >= 0 ? '+' : '-';
+        rightRows.push(['交易日期', `${els.td.value}`]);
         rightRows.push(['交易金额', `**${taVal.toFixed(3)} ${tc}**${pushTc > 0 && isBuyer ? '（含PUSH费）' : ''}`]);
-        rightRows.push(['剩余价值', `**${rv.toFixed(3)} ${tc}**`]);
         rightRows.push(['溢价金额', `${sign}${Math.abs(premium).toFixed(3)} ${tc}`]);
         rightRows.push(['溢价幅度', `${sign}${Math.abs((premium / rv) * 100).toFixed(3)}%`]);
     } else {
-        rightRows.push(['剩余价值', rv !== null ? `**${rv.toFixed(3)} ${tc}**` : '--']);
+        leftRows.push(['计算日期', `${els.td.value}`]);
     }
-    if (pushTc > 0) {
+    if (hasTrade && pushTc > 0) {
         rightRows.push(['PUSH费', `${pushVal.toFixed(3)} ${els.pc.value}${els.pc.value !== tc ? ` ≈ ${pushTc.toFixed(3)} ${tc}` : ''} · **${isBuyer ? '买家承担' : '卖家承担'}**`]);
     }
+    leftRows.push(['剩余价值', rv !== null ? `**${rv.toFixed(3)} ${tc}**` : '--']);
     const rowCount = Math.max(leftRows.length, rightRows.length);
     const lines = [];
-    lines.push('# VPS 剩余价值', '');
-    lines.push('| 基础信息 | | 交易信息 | |');
-    lines.push('| --- | --- | --- | --- |');
-    for (let i = 0; i < rowCount; i++) {
-        const l = leftRows[i] || ['', ''];
-        const r = rightRows[i] || ['', ''];
-        lines.push(`| ${l[0]} | ${l[1]} | ${r[0]} | ${r[1]} |`);
+    lines.push(`# ${hasTrade ? 'VPS 交易估值' : 'VPS 剩余价值'}`, '');
+    if (rightRows.length === 0) {
+        lines.push('| 基础信息 | |');
+        lines.push('| --- | --- |');
+        for (const [k, v] of leftRows) {
+            lines.push(`| ${k} | ${v} |`);
+        }
+        lines.push(`| 汇率 | ${rateLine} |`);
+    } else {
+        lines.push('| 基础信息 | | 交易信息 | |');
+        lines.push('| --- | --- | --- | --- |');
+        for (let i = 0; i < rowCount; i++) {
+            const l = leftRows[i] || ['', ''];
+            const r = rightRows[i] || ['', ''];
+            lines.push(`| ${l[0]} | ${l[1]} | ${r[0]} | ${r[1]} |`);
+        }
+        lines.push(`| 汇率 | ${rateLine} | | |`);
     }
-    lines.push(`| 汇率 | ${rateLine} | | |`);
     const b64 = getUrl().slice(4);
     lines.push('', `[查看完整信息](${window.location.origin}/vrv${b64})`);
     return lines.join('\n');
@@ -401,7 +411,7 @@ function update() {
     if (!els.ra.value || !els.pd.value || !els.ed.value) {
         img.style.display = 'none';
         statusMsg.style.display = 'block';
-        mdReportSource = '';
+        mdTextSource = '';
         mdPreview.innerHTML = '';
         return;
     }
@@ -415,8 +425,8 @@ function update() {
             img.src = targetUrl;
             statusMsg.style.display = 'none';
             img.style.display = 'block';
-            mdReportSource = buildMarkdownReport();
-            mdPreview.innerHTML = renderMarkdown(mdReportSource);
+            mdTextSource = buildMarkdownText();
+            mdPreview.innerHTML = renderMarkdown(mdTextSource);
         };
         tempImg.src = targetUrl;
     }, 300);
@@ -454,6 +464,7 @@ function calculateRV() {
     const er = parseFloat(currentRate);
     if (!isFinite(er) || er <= 0) return null;
     const ra = parseFloat(els.ra.value);
+    const cycleText = PD_TEXT[parseInt(els.pd.value)];
     const { remainDays, totalCycleDays } = getRemainInfo();
     return (ra / totalCycleDays) * remainDays * er;
 }
@@ -523,8 +534,8 @@ document.getElementById('copy-md-btn').addEventListener('click', (e) => {
     tempText(e.target, '已复制 Markdown');
 });
 document.getElementById('copy-md-preview-btn').addEventListener('click', (e) => {
-    if (!mdReportSource) return;
-    fallbackCopyTextToClipboard(mdReportSource);
+    if (!mdTextSource) return;
+    fallbackCopyTextToClipboard(mdTextSource);
     tempText(e.target, '已复制全文');
 });
 document.getElementById('copy-link-btn').addEventListener('click', (e) => {

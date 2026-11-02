@@ -2,12 +2,17 @@
 
 一个用于计算 各类订阅服务剩余价值的 Web 工具，支持动态汇率转换并可生成 SVG 分享图
 
-![main](./resource/2.png)
+![main](./resource/1.png)
 
 ## SVG 预览
 
-| ![main](./resource/1.svg) | ![main](./resource/2.svg) | ![main](./resource/3.svg) |
-|-----------------------|-----------------------|---------------------------|
+| ![main](./resource/1.svg) | ![main](./resource/2.svg) | ![main](./resource/2-1.svg) | ![main](./resource/3.svg) | ![main](./resource/3-1.svg) |
+|-----------------------|-----------------------|---------------------------|---------------------------|---------------------------|
+
+
+## Markdown文本 预览
+
+[Markdown文本](./resource/preview.md)
 
 ## 本地运行
 
