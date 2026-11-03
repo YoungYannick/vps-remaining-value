@@ -38,7 +38,6 @@ const app = express();
 app.set('trust proxy', true);
 let ratesCache = null;
 let ratesCacheTime = 0;
-let isRefreshing = false;
 const SUPPORTED_CURRENCIES = ['AUD', 'CAD', 'CHF', 'CNY', 'EUR', 'GBP', 'HKD', 'INR', 'JPY', 'KRW', 'NZD', 'RUB', 'SGD', 'TWD', 'USD'];
 const FALLBACK_RATES = {
     "AUD": 1.44,
@@ -136,10 +135,12 @@ async function fetchRatesFromApis() {
     }
     return null;
 }
-function refreshInBackground() {
-    if (isRefreshing) return;
-    isRefreshing = true;
-    fetchRatesFromApis().finally(() => { isRefreshing = false; });
+let refreshPromise = null;
+function refreshRates() {
+    if (!refreshPromise) {
+        refreshPromise = fetchRatesFromApis().finally(() => { refreshPromise = null; });
+    }
+    return refreshPromise;
 }
 const getClientIp = (req) => {
     const cf = req.headers['cf-connecting-ip'];
@@ -147,6 +148,15 @@ const getClientIp = (req) => {
     const xff = req.headers['x-forwarded-for'];
     if (xff) return xff.split(',')[0].trim();
     return req.ip || req.socket.remoteAddress || '';
+};
+const formatCacheAge = (cachedAt) => {
+    const ageSec = Math.floor((Date.now() - cachedAt) / 1000);
+    if (ageSec < 60) return `${ageSec}秒`;
+    const mins = Math.floor(ageSec / 60);
+    if (mins < 60) return `${mins}分${ageSec % 60}秒`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}小时${mins % 60}分`;
+    return `${Math.floor(hours / 24)}天${hours % 24}小时`;
 };
 const isValidHost = (urlStr, expectedHost) => {
     try {
@@ -326,25 +336,36 @@ app.get('/api/rates', async (req, res) => {
     const expectedSign = crypto.createHmac('sha256', SECRET_KEY).update(t + ip).digest('hex');
     if (sign !== expectedSign) return res.status(403).json({ error: "Invalid" });
     if (ratesCache && Date.now() < ratesCacheTime) {
-        const ageMs = Date.now() - ratesCache.cachedAt;
-        const ageMins = Math.floor(ageMs / 60000);
-        const ageSecs = Math.floor((ageMs % 60000) / 1000);
-        const timeStr = ageMins > 0 ? `${ageMins}分${ageSecs}秒前` : `${ageSecs}秒前`;
         return res.json({
-            source: `${ratesCache.source} (缓存于 ${timeStr})`,
+            source: `${ratesCache.source} (缓存于 ${formatCacheAge(ratesCache.cachedAt)}前)`,
             rates: ratesCache.rates
         });
     }
     if (ratesCache) {
-        refreshInBackground();
+        const pending = refreshRates();
+        if (req.query.wait) {
+            const result = await pending;
+            if (result) return res.json({ source: result.source, rates: result.rates });
+            return res.json({
+                source: `${ratesCache.source} (更新失败，使用 ${formatCacheAge(ratesCache.cachedAt)}前的缓存)`,
+                rates: ratesCache.rates
+            });
+        }
         return res.json({
-            source: `${ratesCache.source} (后台更新中)`,
-            rates: ratesCache.rates
+            source: `${ratesCache.source} (后台更新中，缓存于 ${formatCacheAge(ratesCache.cachedAt)}前)`,
+            rates: ratesCache.rates,
+            stale: true
         });
     }
     const result = await fetchRatesFromApis();
     if (result) {
         return res.json({ source: result.source, rates: result.rates });
+    }
+    if (ratesCache) {
+        return res.json({
+            source: `${ratesCache.source} (更新失败，使用 ${formatCacheAge(ratesCache.cachedAt)}前的缓存)`,
+            rates: ratesCache.rates
+        });
     }
     ratesCache = { source: '离线备用汇率', rates: FALLBACK_RATES, cachedAt: Date.now() };
     ratesCacheTime = Date.now() + 300000;

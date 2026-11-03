@@ -97,14 +97,21 @@ function syncTransactionFields() {
         els.pa.value = (baseTa - rv).toFixed(3);
     }
 }
+function applyRates(data) {
+    exchangeRates = data.rates;
+    document.getElementById('rate-source').innerText = `数据来源: ${data.source}`;
+    updateRateField();
+}
 async function fetchRates() {
     try {
         const res = await fetch('/api/rates');
         if (!res.ok) throw new Error('API Error');
         const data = await res.json();
-        exchangeRates = data.rates;
-        document.getElementById('rate-source').innerText = `数据来源: ${data.source}`;
-        updateRateField();
+        applyRates(data);
+        if (data.stale) {
+            const freshRes = await fetch('/api/rates?wait=1', { signal: AbortSignal.timeout(30000) }).catch(() => null);
+            if (freshRes && freshRes.ok) applyRates(await freshRes.json());
+        }
     } catch (e) {
         document.getElementById('rate-source').innerText = '数据来源: 获取失败';
         updateRateField();
