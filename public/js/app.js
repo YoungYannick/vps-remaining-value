@@ -251,6 +251,7 @@ function generateBase64UrlV2(paramsObj) {
     const tcVal = paramsObj.tc && paramsObj.tc !== 'CNY' ? paramsObj.tc : '';
     const pcVal = paramsObj.pc && paramsObj.pc !== 'CNY' ? paramsObj.pc : '';
     const pairPresent = !!(rcVal || tcVal);
+    const reusePer = !!(paramsObj.per && (paramsObj.rc || 'USD') === (paramsObj.pc || 'CNY'));
     let mask = 0;
     let f64Mask = 0;
     let extF64 = false;
@@ -262,6 +263,7 @@ function generateBase64UrlV2(paramsObj) {
     if (pcVal) { mask |= (1 << 16); totalBytes += 1; }
     for (const def of SCHEMA) {
         if (['cm', 'eom', 'ps', 'rc', 'tc', 'pc'].includes(def.key)) continue;
+        if (reusePer && def.key === 'per') continue;
         const val = paramsObj[def.key];
         if (val === undefined || val === '') continue;
         mask |= (1 << def.bit);

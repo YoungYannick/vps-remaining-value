@@ -371,6 +371,9 @@ function decodeBase64ParamsV2(base64UrlStr) {
                 offset += 2;
             }
         }
+        const rcEff = out.rc || 'USD';
+        const pcEff = out.pc || 'CNY';
+        if (out.er && !out.per && rcEff === pcEff) out.per = out.er;
         return out;
     } catch (e) {
         return {};
