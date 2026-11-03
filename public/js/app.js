@@ -2,11 +2,18 @@ const els = ['ra', 'rc', 'pd', 'cm', 'ed', 'td', 'dr', 'pa', 'ta', 'tc', 'eom', 
     acc[id] = document.getElementById(id);
     return acc;
 }, {});
-const TZ_OFFSET = (typeof window.TZ_OFFSET === 'number' && !isNaN(window.TZ_OFFSET)) ? window.TZ_OFFSET : 8;
-const nowShifted = Date.now() + TZ_OFFSET * 3600000;
-els.td.value = new Date(nowShifted).toISOString().split('T')[0];
-els.ed.value = new Date(nowShifted + 86400000).toISOString().split('T')[0];
-console.log(`[VPS-RV] 服务端时区: UTC${TZ_OFFSET >= 0 ? '+' : ''}${TZ_OFFSET} | 当前(按此时区): ${new Date(nowShifted).toISOString().replace('T', ' ').slice(0, 19)} | 交易日期默认: ${els.td.value} | 到期默认: ${els.ed.value}`);
+const TIMEZONE = (typeof window.TIMEZONE === 'string' && window.TIMEZONE) ? window.TIMEZONE : 'Asia/Shanghai';
+const dateFmt = new Intl.DateTimeFormat('en-CA', { timeZone: TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit' });
+const timeFmt = new Intl.DateTimeFormat('sv-SE', { timeZone: TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+const getTodayStr = () => dateFmt.format(new Date());
+const addDays = (dateStr, days) => {
+    const d = new Date(dateStr + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() + days);
+    return d.toISOString().split('T')[0];
+};
+els.td.value = getTodayStr();
+els.ed.value = addDays(els.td.value, 1);
+console.log(`[VPS-RV] 服务端时区: ${TIMEZONE} | 当前(按此时区): ${timeFmt.format(new Date())} | 交易日期默认: ${els.td.value} | 到期默认: ${els.ed.value}`);
 console.log(`[VPS-RV] 浏览器本地时区: ${Intl.DateTimeFormat().resolvedOptions().timeZone} | 本地时间: ${new Date().toLocaleString()}`);
 const img = document.getElementById('preview');
 const statusMsg = document.getElementById('status-msg');
@@ -103,6 +110,13 @@ async function fetchRates() {
         updateRateField();
     }
 }
+const formatRate = (n) => {
+    if (!isFinite(n) || n <= 0) return '--';
+    const digits = n >= 1000 ? 2 : n >= 100 ? 3 : n >= 1 ? 4 : n >= 0.1 ? 5 : 6;
+    const s = n.toFixed(digits);
+    return s.includes('.') ? s.replace(/0+$/, '').replace(/\.$/, '') : s;
+};
+const serializeRate = (n) => String(parseFloat(n.toPrecision(12)));
 function updateRateField() {
     const from = els.rc.value;
     const to = els.tc.value;
@@ -117,8 +131,8 @@ function updateRateField() {
         rateDisplay.value = `1 ${from} = 1 ${to}`;
     } else if (exchangeRates[from] && exchangeRates[to]) {
         const rate = exchangeRates[to] / exchangeRates[from];
-        currentRate = rate.toFixed(4);
-        rateDisplay.value = `1 ${from} = ${rate.toFixed(4)} ${to}`;
+        currentRate = rate;
+        rateDisplay.value = `1 ${from} ≈ ${formatRate(rate)} ${to}`;
     } else {
         currentRate = null;
         rateDisplay.value = '汇率不可用';
@@ -229,7 +243,7 @@ function getUrlParamsObj() {
         }
     }
     const erNum = parseFloat(currentRate);
-    if (isFinite(erNum) && erNum > 0) paramsObj['er'] = erNum.toFixed(4);
+    if (isFinite(erNum) && erNum > 0) paramsObj['er'] = serializeRate(erNum);
     ['ta', 'pa', 'dr'].forEach(k => {
         if (k !== lastTxField || els[k].value === '') delete paramsObj[k];
     });
@@ -242,7 +256,7 @@ function getUrlParamsObj() {
             delete paramsObj.per;
         } else {
             const pr = getPushRate();
-            if (isFinite(pr) && pr > 0) paramsObj['per'] = pr.toFixed(4);
+            if (isFinite(pr) && pr > 0) paramsObj['per'] = serializeRate(pr);
         }
     } else {
         delete paramsObj.push;
@@ -354,10 +368,11 @@ function buildMarkdownText() {
     const erNum = parseFloat(currentRate);
     const taVal = parseFloat(els.ta.value);
     const hasTa = !isNaN(taVal);
-    let rateLine = (isFinite(erNum) && erNum > 0) ? `1 ${rc} = ${erNum.toFixed(4)} ${tc}` : '汇率不可用';
+    const rateOp = rc === tc ? '=' : '≈';
+    let rateLine = (isFinite(erNum) && erNum > 0) ? `1 ${rc} ${rateOp} ${formatRate(erNum)} ${tc}` : '汇率不可用';
     if (hasTa && rv !== null && pushTc > 0 && els.pc.value !== tc && els.pc.value !== rc) {
         const pr = getPushRate();
-        if (isFinite(pr)) rateLine += ` · 1 ${els.pc.value} = ${pr.toFixed(4)} ${tc}`;
+        if (isFinite(pr)) rateLine += ` · 1 ${els.pc.value} ≈ ${formatRate(pr)} ${tc}`;
     }
     const pct = totalCycleDays > 0 ? (remainDays / totalCycleDays) * 100 : 0;
     const leftRows = [
@@ -585,10 +600,10 @@ if (urlParams.has('er')) {
     const from = els.rc.value || 'USD';
     const to = els.tc.value || 'CNY';
     if (isFinite(erNum) && erNum > 0) {
-        currentRate = erNum.toFixed(4);
+        currentRate = erNum;
         rateLocked = true;
         lockedPair = `${from}_${to}`;
-        rateDisplay.value = `1 ${from} = ${currentRate} ${to}`;
+        rateDisplay.value = `1 ${from} ${from === to ? '=' : '≈'} ${formatRate(currentRate)} ${to}`;
     } else {
         currentRate = null;
         rateDisplay.value = '汇率不可用';
@@ -639,9 +654,8 @@ document.getElementById('reset-btn').addEventListener('click', (e) => {
     document.getElementById('eom-group').style.display = 'none';
     initEomCapsule();
     initCapsule();
-    const nowShifted = Date.now() + TZ_OFFSET * 3600000;
-    els.td.value = new Date(nowShifted).toISOString().split('T')[0];
-    els.ed.value = new Date(nowShifted + 86400000).toISOString().split('T')[0];
+    els.td.value = getTodayStr();
+    els.ed.value = addDays(els.td.value, 1);
     els.ta.value = '';
     els.dr.value = '';
     els.pa.value = '';

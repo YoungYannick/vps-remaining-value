@@ -25,7 +25,7 @@ function updateRateExchangeInfo() {
         rateExchangeInfo.innerText = '汇率数据获取失败，按 1:1 计算';
         return;
     }
-    rateExchangeInfo.innerText = `1 ${rateFromCurrency.value} = ${getModalRate().toFixed(4)} ${rateToCurrency.value}`;
+    rateExchangeInfo.innerText = `1 ${rateFromCurrency.value} ${rateFromCurrency.value === rateToCurrency.value ? '=' : '≈'} ${formatRate(getModalRate())} ${rateToCurrency.value}`;
 }
 function syncRateFields() {
     const rate = getModalRate();

@@ -1,28 +1,41 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
+const cookieParser = require('cookie-parser');
 require('dotenv').config();
+
+const TIMEZONE = process.env.TIMEZONE || 'Asia/Shanghai';
+let logFmt;
+try {
+    logFmt = new Intl.DateTimeFormat('sv-SE', { timeZone: TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+} catch (e) {
+    console.error(`[${new Date().toLocaleString('sv-SE')}] [启动失败] 无效的 TIMEZONE: ${TIMEZONE}`);
+    process.exit(1);
+}
+const dateFmt = new Intl.DateTimeFormat('en-CA', { timeZone: TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit' });
+const stamp = () => logFmt.format(new Date());
+const log = (msg) => console.log(`[${stamp()}] ${msg}`);
+const warn = (msg) => console.warn(`[${stamp()}] ${msg}`);
+const logErr = (msg) => console.error(`[${stamp()}] ${msg}`);
+
+const SECRET_KEY = process.env.SECRET_KEY;
+if (!SECRET_KEY) {
+    logErr('[启动失败] 未配置 SECRET_KEY，请在 .env 或环境变量中设置');
+    process.exit(1);
+}
+
 let logoBase64 = '';
 try {
     let logoStr = fs.readFileSync(path.join(__dirname, 'public', 'images', 'logo.svg'), 'utf-8');
     logoStr = logoStr.replace(/#000000|#000\b|black/gi, '#D4AF37');
     logoBase64 = `data:image/svg+xml;base64,${Buffer.from(logoStr).toString('base64')}`;
 } catch (e) {
-    console.error(e);
+    logErr(`Logo 加载失败: ${e.message}`);
 }
-require('dotenv').config();
+
 const app = express();
 app.set('trust proxy', true);
-const crypto = require('crypto');
-const cookieParser = require('cookie-parser');
-const SECRET_KEY = process.env.SECRET_KEY;
-if (!SECRET_KEY) {
-    console.error('[启动失败] 未配置 SECRET_KEY，请在 .env 或环境变量中设置');
-    process.exit(1);
-}
-const V6_API_KEY = process.env.V6_API_KEY;
-const TZ_OFFSET_H = parseInt(process.env.TZ_OFFSET);
-const TZ_OFFSET = isNaN(TZ_OFFSET_H) ? 8 : TZ_OFFSET_H;
 let ratesCache = null;
 let ratesCacheTime = 0;
 let isRefreshing = false;
@@ -56,15 +69,30 @@ async function fetchOnce(url) {
             },
             signal: controller.signal
         });
-        if (!response.ok) return null;
+        if (!response.ok) {
+            warn(`[汇率源] HTTP ${response.status}: ${url}`);
+            return null;
+        }
         return await response.json();
     } catch (e) {
+        const code = e.cause && e.cause.code ? ` (${e.cause.code})` : '';
+        warn(`[汇率源] 请求失败: ${url}${code}`);
         return null;
     } finally {
         clearTimeout(timeoutId);
     }
 }
 function normalizeRates(data) {
+    if (Array.isArray(data)) {
+        const rates = {};
+        for (const item of data) {
+            if (!item || typeof item.quote !== 'string' || typeof item.rate !== 'number') continue;
+            const cur = item.quote.toUpperCase();
+            if (SUPPORTED_CURRENCIES.includes(cur)) rates[cur] = item.rate;
+        }
+        rates.USD = 1;
+        return Object.keys(rates).length >= 10 ? rates : null;
+    }
     if (data.rates) return data.rates;
     if (data.conversion_rates) return data.conversion_rates;
     if (data.usd && typeof data.usd === 'object') {
@@ -78,18 +106,26 @@ function normalizeRates(data) {
     return null;
 }
 async function fetchRatesFromApis() {
-    const sources = [];
-    if (V6_API_KEY) {
-        sources.push({ url: `https://v6.exchangerate-api.com/v6/${V6_API_KEY}/latest/USD`, name: 'ExchangeRate-API V6', ttl: 14400000 });
-    }
-    sources.push(
-        { url: 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json', name: 'Currency-API (jsDelivr)', ttl: 14400000 },
-        { url: 'https://latest.currency-api.pages.dev/v1/currencies/usd.json', name: 'Currency-API (Pages)', ttl: 14400000 },
+    const sources = [
         { url: 'https://api.exchangerate.fun/latest?base=USD', name: 'ExchangeRate.fun', ttl: 3600000 },
+        {
+            url: 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json',
+            fallbackUrls: [
+                'https://fastly.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json',
+                'https://latest.currency-api.pages.dev/v1/currencies/usd.json'
+            ],
+            name: 'Currency-API',
+            ttl: 7200000
+        },
+        { url: 'https://api.frankfurter.dev/v2/rates?base=usd', name: 'Frankfurter', ttl: 7200000 },
         { url: 'https://api.exchangerate-api.com/v4/latest/USD', name: 'ExchangeRate-API V4', ttl: 300000 }
-    );
+    ];
     for (const api of sources) {
-        const data = await fetchOnce(api.url);
+        let data = null;
+        for (const url of [api.url, ...(api.fallbackUrls || [])]) {
+            data = await fetchOnce(url);
+            if (data) break;
+        }
         if (!data) continue;
         const rates = normalizeRates(data);
         if (rates) {
@@ -128,8 +164,7 @@ app.use((req, res, next) => {
         const isStatic = skipExtensions.includes(ext) || urlPath === '/favicon.ico';
         if (!isStatic) {
             const ip = getClientIp(req);
-            const bjTime = new Date(Date.now() + TZ_OFFSET * 3600000).toISOString().replace('T', ' ').replace('Z', '');
-            console.log(`[${bjTime}] [${ip}] [${req.method}] [${res.statusCode}] ${req.originalUrl}`);
+            log(`[${ip}] [${req.method}] [${res.statusCode}] ${req.originalUrl}`);
         }
     });
     next();
@@ -187,7 +222,13 @@ const validRate = (v) => {
     const n = parseFloat(v);
     return (isFinite(n) && n > 0) ? n : null;
 };
-const getNowDateStr = () => new Date(Date.now() + TZ_OFFSET * 3600000).toISOString().split('T')[0];
+const formatRate = (n) => {
+    if (!isFinite(n) || n <= 0) return '--';
+    const digits = n >= 1000 ? 2 : n >= 100 ? 3 : n >= 1 ? 4 : n >= 0.1 ? 5 : 6;
+    const s = n.toFixed(digits);
+    return s.includes('.') ? s.replace(/0+$/, '').replace(/\.$/, '') : s;
+};
+const getNowDateStr = () => dateFmt.format(new Date());
 function decodeBase64Params(base64UrlStr) {
     if (!base64UrlStr) return {};
     let b64 = base64UrlStr.replace(/-/g, '+').replace(/_/g, '/');
@@ -259,7 +300,7 @@ function getSiteUrl(req) {
     return `${req.protocol}://${host}`;
 }
 app.get('/', (req, res) => {
-    res.send(indexTemplate.replace(/\{\{siteUrl\}\}/g, getSiteUrl(req)).replace(/\{\{tzOffset\}\}/g, String(TZ_OFFSET)));
+    res.send(indexTemplate.replace(/\{\{siteUrl\}\}/g, getSiteUrl(req)).replace(/\{\{timezone\}\}/g, JSON.stringify(TIMEZONE)));
 });
 app.get('/robots.txt', (req, res) => {
     res.type('text/plain');
@@ -449,7 +490,7 @@ app.get(/^\/(?:svg|svg([A-Za-z0-9_-]+))$/, (req, res) => {
 <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" transform="translate(854, 68)" fill="#FFFFFF"/>
 <text x="1110" y="81" font-size="14" fill="#FFFFFF" text-anchor="end">YoungYannick/vps-remaining-value</text>
 </g>
- <text x="1110" y="110" font-size="15" opacity="0.4" text-anchor="end">${er !== null ? `汇率: 1 ${rc} = ${er.toFixed(4)} ${tc}` : '汇率: 不可用'}${pushTc > 0 && pc !== tc && pc !== rc ? ` · 1 ${pc} = ${per.toFixed(4)} ${tc}` : ''} | ${showPremium ? '交易日期' : '计算日期'}: ${td}</text>
+ <text x="1110" y="110" font-size="15" opacity="0.4" text-anchor="end">${er !== null ? `汇率: 1 ${rc} ${rc === tc ? '=' : '≈'} ${formatRate(er)} ${tc}` : '汇率: 不可用'}${pushTc > 0 && pc !== tc && pc !== rc ? ` · 1 ${pc} ≈ ${formatRate(per)} ${tc}` : ''} | ${showPremium ? '交易日期' : '计算日期'}: ${td}</text>
 <line x1="50" y1="145" x2="1150" y2="145" stroke="#FFFFFF" opacity="0.08"/>
 <g class="anim d1">
 <text x="90" y="280" font-size="16" fill="#FFFFFF" opacity="0.6">剩余价值 (${tc})</text>
@@ -528,6 +569,6 @@ app.use((req, res) => {
     res.status(404).end();
 });
 app.listen(45867, () => {
-    console.log(`[${new Date().toISOString()}] Server is running at http://localhost:45867`);
-    console.log(`V6_API_KEY: ${V6_API_KEY ? '已配置' : '未配置'} | TZ_OFFSET: UTC${TZ_OFFSET >= 0 ? '+' : ''}${TZ_OFFSET}`);
+    log('Server is running at http://localhost:45867');
+    log(`TIMEZONE: ${TIMEZONE}`);
 });
