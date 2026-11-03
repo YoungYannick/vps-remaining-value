@@ -168,6 +168,7 @@ const dateToDays = (dateStr) => Math.floor(new Date(dateStr).getTime() / 8640000
 function generateBase64Url(paramsObj) {
     let mask = 0;
     let f64Mask = 0;
+    let extF64 = false;
     let totalBytes = 2;
     for (let i = 0; i < SCHEMA.length; i++) {
         const def = SCHEMA[i];
@@ -175,12 +176,13 @@ function generateBase64Url(paramsObj) {
         if (val !== undefined && val !== '') {
             mask |= (1 << def.bit);
             if (def.type === 'float') {
-                if (def.bit < 16 && String(val).replace(/[^0-9]/g, '').length > 7) {
-                    f64Mask |= (1 << def.bit);
-                    totalBytes += 8;
-                } else {
-                    totalBytes += 4;
+                const needF64 = String(val).replace(/[^0-9]/g, '').length > 7;
+                if (def.bit < 16) {
+                    if (needF64) f64Mask |= (1 << def.bit);
+                } else if (needF64) {
+                    extF64 = true;
                 }
+                totalBytes += needF64 ? 8 : 4;
             } else if (def.type === 'u16' || def.type === 'date') {
                 totalBytes += 2;
             } else if (def.type === 'dict') {
@@ -189,8 +191,8 @@ function generateBase64Url(paramsObj) {
         }
     }
     const hasF64Mask = f64Mask > 0;
-    const extMask = mask >>> 16;
-    const hasExtMask = extMask > 0;
+    const extMask = (mask >>> 16) | (extF64 ? 0x8000 : 0);
+    const hasExtMask = (mask >>> 16) > 0;
     if (hasF64Mask) {
         mask |= 0x8000;
         totalBytes += 2;
@@ -216,7 +218,8 @@ function generateBase64Url(paramsObj) {
         if ((mask & (1 << def.bit)) !== 0) {
             const val = paramsObj[def.key];
             if (def.type === 'float') {
-                if ((f64Mask & (1 << def.bit)) !== 0) {
+                const isF64 = def.bit < 16 ? ((f64Mask & (1 << def.bit)) !== 0) : extF64;
+                if (isF64) {
                     view.setFloat64(offset, parseFloat(val));
                     offset += 8;
                 } else {

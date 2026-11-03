@@ -266,17 +266,22 @@ function decodeBase64Params(base64UrlStr) {
             extMask = view.getUint16(offset);
             offset += 2;
         }
-        const mask = (maskLo & 0x3FFF) | (extMask << 16);
+        const mask = (maskLo & 0x3FFF) | ((extMask & 0x7FFF) << 16);
+        const extF64 = (extMask & 0x8000) !== 0;
         if (!hasF64Mask) {
-            const expectedF64Len = SCHEMA.reduce((acc, s) => acc + ((mask & (1 << s.bit)) ? (s.type === 'float' ? 8 : s.type === 'dict' ? 1 : 2) : 0), 2) + (hasExtMask ? 2 : 0);
-            isLegacyF32 = buffer.byteLength !== expectedF64Len;
+            if (extF64) {
+                isLegacyF32 = true;
+            } else {
+                const expectedF64Len = SCHEMA.reduce((acc, s) => acc + ((mask & (1 << s.bit)) ? (s.type === 'float' ? 8 : s.type === 'dict' ? 1 : 2) : 0), 2) + (hasExtMask ? 2 : 0);
+                isLegacyF32 = buffer.byteLength !== expectedF64Len;
+            }
         }
         const outParams = {};
         for (let i = 0; i < SCHEMA.length; i++) {
             const schemaDef = SCHEMA[i];
             if ((mask & (1 << schemaDef.bit)) !== 0) {
                 if (schemaDef.type === 'float') {
-                    const isF64 = hasF64Mask ? ((f64Mask & (1 << schemaDef.bit)) !== 0) : !isLegacyF32;
+                    const isF64 = schemaDef.bit >= 16 ? extF64 : (hasF64Mask ? ((f64Mask & (1 << schemaDef.bit)) !== 0) : !isLegacyF32);
                     if (isF64) {
                         outParams[schemaDef.key] = Number(view.getFloat64(offset).toPrecision(15)).toString();
                         offset += 8;
