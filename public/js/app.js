@@ -245,6 +245,89 @@ function generateBase64Url(paramsObj) {
     }
     return btoa(binaryStr).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
+const CURRENCY_CODE = SCHEMA.find(s => s.key === 'rc').dict;
+function generateBase64UrlV2(paramsObj) {
+    const rcVal = paramsObj.rc && paramsObj.rc !== 'USD' ? paramsObj.rc : '';
+    const tcVal = paramsObj.tc && paramsObj.tc !== 'CNY' ? paramsObj.tc : '';
+    const pcVal = paramsObj.pc && paramsObj.pc !== 'CNY' ? paramsObj.pc : '';
+    const pairPresent = !!(rcVal || tcVal);
+    let mask = 0;
+    let f64Mask = 0;
+    let extF64 = false;
+    let totalBytes = 2;
+    if (pairPresent) { mask |= (1 << 1); totalBytes += 1; }
+    if (paramsObj.cm === 'fixed') mask |= (1 << 3);
+    if (paramsObj.eom === 'eom') mask |= (1 << 10);
+    if (paramsObj.ps === 'buyer') mask |= (1 << 13);
+    if (pcVal) { mask |= (1 << 16); totalBytes += 1; }
+    for (const def of SCHEMA) {
+        if (['cm', 'eom', 'ps', 'rc', 'tc', 'pc'].includes(def.key)) continue;
+        const val = paramsObj[def.key];
+        if (val === undefined || val === '') continue;
+        mask |= (1 << def.bit);
+        if (def.type === 'float') {
+            const needF64 = String(val).replace(/[^0-9]/g, '').length > 7;
+            if (def.bit < 16) {
+                if (needF64) f64Mask |= (1 << def.bit);
+            } else if (needF64) {
+                extF64 = true;
+            }
+            totalBytes += needF64 ? 8 : 4;
+        } else if (def.type === 'u16' || def.type === 'date') {
+            totalBytes += 2;
+        }
+    }
+    const hasF64Mask = f64Mask > 0;
+    const extMask = (mask >>> 16) | (extF64 ? 0x8000 : 0);
+    const hasExtMask = (mask >>> 16) > 0;
+    if (hasF64Mask) { mask |= 0x8000; totalBytes += 2; }
+    if (hasExtMask) { mask |= 0x4000; totalBytes += 2; }
+    const view = new DataView(new ArrayBuffer(totalBytes));
+    view.setUint16(0, mask & 0xFFFF);
+    let offset = 2;
+    if (hasF64Mask) { view.setUint16(offset, f64Mask); offset += 2; }
+    if (hasExtMask) { view.setUint16(offset, extMask); offset += 2; }
+    for (const def of SCHEMA) {
+        if (def.key === 'tc' || def.key === 'cm' || def.key === 'eom' || def.key === 'ps') continue;
+        if (def.key === 'rc') {
+            if (pairPresent) {
+                const rcCode = rcVal ? CURRENCY_CODE[rcVal] : 0;
+                const tcCode = tcVal ? CURRENCY_CODE[tcVal] : 0;
+                view.setUint8(offset, (tcCode << 4) | rcCode);
+                offset += 1;
+            }
+            continue;
+        }
+        if (def.key === 'pc') {
+            if (pcVal) { view.setUint8(offset, CURRENCY_CODE[pcVal]); offset += 1; }
+            continue;
+        }
+        if ((mask & (1 << def.bit)) === 0) continue;
+        const val = paramsObj[def.key];
+        if (def.type === 'float') {
+            const isF64 = def.bit < 16 ? ((f64Mask & (1 << def.bit)) !== 0) : extF64;
+            if (isF64) {
+                view.setFloat64(offset, parseFloat(val));
+                offset += 8;
+            } else {
+                view.setFloat32(offset, parseFloat(val));
+                offset += 4;
+            }
+        } else if (def.type === 'u16') {
+            view.setUint16(offset, parseInt(val, 10));
+            offset += 2;
+        } else if (def.type === 'date') {
+            view.setUint16(offset, dateToDays(val));
+            offset += 2;
+        }
+    }
+    const uint8Array = new Uint8Array(view.buffer);
+    let binaryStr = '';
+    for (let i = 0; i < uint8Array.byteLength; i++) {
+        binaryStr += String.fromCharCode(uint8Array[i]);
+    }
+    return btoa(binaryStr).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
 function getUrlParamsObj() {
     const paramsObj = {};
     for (const key in els) {
@@ -284,8 +367,8 @@ function getUrlParamsObj() {
 }
 function getUrl() {
     const paramsObj = getUrlParamsObj();
-    const b64 = generateBase64Url(paramsObj);
-    return `/svg${b64}`;
+    const b64 = generateBase64UrlV2(paramsObj);
+    return `/svg2/${b64}`;
 }
 const mdPreview = document.getElementById('md-preview');
 const PD_TEXT = { 30: '月付', 90: '季付', 180: '半年付', 365: '年付', 730: '两年付', 1095: '三年付', 1825: '五年付' };
@@ -427,8 +510,8 @@ function buildMarkdownText() {
         }
         lines.push(`| 汇率 | ${rateLine} | | |`);
     }
-    const b64 = getUrl().slice(4);
-    lines.push('', `[查看完整信息](${window.location.origin}/vrv${b64})`);
+    const b64 = generateBase64UrlV2(getUrlParamsObj());
+    lines.push('', `[查看完整信息](${window.location.origin}/v2/${b64})`);
     return lines.join('\n');
 }
 let debounceTimer = null;
@@ -552,9 +635,9 @@ function fallbackCopyTextToClipboard(text) {
 document.getElementById('copy-md-btn').addEventListener('click', (e) => {
     if (!els.ra.value || !els.pd.value || !els.ed.value) return;
     const paramsObj = getUrlParamsObj();
-    const b64 = generateBase64Url(paramsObj);
-    const fullUrlShort = window.location.origin + `/svg${b64}`;
-    const shareUrlShort = window.location.origin + `/vrv${b64}`;
+    const b64 = generateBase64UrlV2(paramsObj);
+    const fullUrlShort = window.location.origin + `/svg2/${b64}`;
+    const shareUrlShort = window.location.origin + `/v2/${b64}`;
     fallbackCopyTextToClipboard(`[![VPS Remaining Value](${fullUrlShort})](${shareUrlShort} "查看工具")`);
     tempText(e.target, '已复制 Markdown');
 });
@@ -566,8 +649,8 @@ document.getElementById('copy-md-preview-btn').addEventListener('click', (e) => 
 document.getElementById('copy-link-btn').addEventListener('click', (e) => {
     if (!els.ra.value || !els.pd.value || !els.ed.value) return;
     const paramsObj = getUrlParamsObj();
-    const b64 = generateBase64Url(paramsObj);
-    const shareUrlShort = window.location.origin + `/vrv${b64}`;
+    const b64 = generateBase64UrlV2(paramsObj);
+    const shareUrlShort = window.location.origin + `/v2/${b64}`;
     fallbackCopyTextToClipboard(shareUrlShort);
     tempText(e.target, '已复制分享链接');
 });

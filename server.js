@@ -181,7 +181,7 @@ app.use((req, res, next) => {
 });
 app.use(cookieParser(SECRET_KEY));
 app.use((req, res, next) => {
-    if (req.path === '/' || req.path === '/index.html' || req.path.startsWith('/vrv')) {
+    if (req.path === '/' || req.path === '/index.html' || req.path.startsWith('/vrv') || req.path.startsWith('/v2/')) {
         const t = Date.now().toString();
         const ip = getClientIp(req);
         const sign = crypto.createHmac('sha256', SECRET_KEY).update(t + ip).digest('hex');
@@ -308,6 +308,74 @@ function decodeBase64Params(base64UrlStr) {
         return {};
     }
 }
+const CURRENCY_BY_CODE = Object.fromEntries(Object.entries(SCHEMA.find(s => s.key === 'rc').dict).map(([k, v]) => [v, k]));
+function decodeBase64ParamsV2(base64UrlStr) {
+    if (!base64UrlStr) return {};
+    let b64 = base64UrlStr.replace(/-/g, '+').replace(/_/g, '/');
+    while (b64.length % 4) b64 += '=';
+    try {
+        const binaryStr = Buffer.from(b64, 'base64').toString('binary');
+        const buffer = new ArrayBuffer(binaryStr.length);
+        const uint8Array = new Uint8Array(buffer);
+        for (let i = 0; i < binaryStr.length; i++) uint8Array[i] = binaryStr.charCodeAt(i);
+        const view = new DataView(buffer);
+        const maskLo = view.getUint16(0);
+        const hasF64Mask = (maskLo & 0x8000) !== 0;
+        const hasExtMask = (maskLo & 0x4000) !== 0;
+        let f64Mask = 0;
+        let extMask = 0;
+        let offset = 2;
+        if (hasF64Mask) { f64Mask = view.getUint16(offset); offset += 2; }
+        if (hasExtMask) { extMask = view.getUint16(offset); offset += 2; }
+        const mask = (maskLo & 0x3FFF) | ((extMask & 0x7FFF) << 16);
+        const extF64 = (extMask & 0x8000) !== 0;
+        const out = {};
+        for (const def of SCHEMA) {
+            if (def.key === 'tc') continue;
+            const present = (mask & (1 << def.bit)) !== 0;
+            if (def.key === 'cm') { if (present) out.cm = 'fixed'; continue; }
+            if (def.key === 'eom') { if (present) out.eom = 'eom'; continue; }
+            if (def.key === 'ps') { if (present) out.ps = 'buyer'; continue; }
+            if (def.key === 'rc') {
+                if (present) {
+                    const pair = view.getUint8(offset); offset += 1;
+                    const rcCode = pair & 0x0F;
+                    const tcCode = (pair >> 4) & 0x0F;
+                    if (rcCode) out.rc = CURRENCY_BY_CODE[rcCode];
+                    if (tcCode) out.tc = CURRENCY_BY_CODE[tcCode];
+                }
+                continue;
+            }
+            if (def.key === 'pc') {
+                if (present) {
+                    const code = view.getUint8(offset) & 0x0F; offset += 1;
+                    if (code) out.pc = CURRENCY_BY_CODE[code];
+                }
+                continue;
+            }
+            if (!present) continue;
+            if (def.type === 'float') {
+                const isF64 = def.bit >= 16 ? extF64 : ((f64Mask & (1 << def.bit)) !== 0);
+                if (isF64) {
+                    out[def.key] = Number(view.getFloat64(offset).toPrecision(15)).toString();
+                    offset += 8;
+                } else {
+                    out[def.key] = Number(view.getFloat32(offset).toPrecision(7)).toString();
+                    offset += 4;
+                }
+            } else if (def.type === 'u16') {
+                out[def.key] = view.getUint16(offset).toString();
+                offset += 2;
+            } else if (def.type === 'date') {
+                out[def.key] = daysToDate(view.getUint16(offset));
+                offset += 2;
+            }
+        }
+        return out;
+    } catch (e) {
+        return {};
+    }
+}
 const indexTemplate = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf-8');
 function getSiteUrl(req) {
     const host = req.get('host') || '';
@@ -379,10 +447,12 @@ app.get('/api/rates', async (req, res) => {
         rates: ratesCache.rates
     });
 });
-app.get(/^\/(?:svg|svg([A-Za-z0-9_-]+))$/, (req, res) => {
+app.get(/^\/(?:svg2\/([A-Za-z0-9_-]+)|svg|svg([A-Za-z0-9_-]+))$/, (req, res) => {
     let params = req.query;
     if (req.params[0]) {
-        params = decodeBase64Params(req.params[0]);
+        params = decodeBase64ParamsV2(req.params[0]);
+    } else if (req.params[1]) {
+        params = decodeBase64Params(req.params[1]);
     }
     const ra = parseFloat(params.ra) || 0;
     const rc = validCurrency(params.rc, 'USD');
@@ -587,6 +657,10 @@ app.get(/^\/vrv([A-Za-z0-9_-]+)$/, (req, res) => {
     const params = decodeBase64Params(b64);
     const qs = new URLSearchParams(params).toString();
     res.redirect(`/?${qs}`);
+});
+app.get(/^\/v2\/([A-Za-z0-9_-]+)$/, (req, res) => {
+    const params = decodeBase64ParamsV2(req.params[0]);
+    res.redirect(`/?${new URLSearchParams(params).toString()}`);
 });
 app.get('/favicon.ico', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'images', 'favicon.ico'));
