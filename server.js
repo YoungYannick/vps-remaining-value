@@ -238,6 +238,7 @@ const formatRate = (n) => {
     const s = n.toFixed(digits);
     return s.includes('.') ? s.replace(/0+$/, '').replace(/\.$/, '') : s;
 };
+const roundNum = (n, digits = 6) => Number(n.toFixed(digits));
 const getNowDateStr = () => dateFmt.format(new Date());
 function decodeBase64Params(base64UrlStr) {
     if (!base64UrlStr) return {};
@@ -537,6 +538,8 @@ app.get(/^\/(?:svg2\/([A-Za-z0-9_-]+)|svg|svg([A-Za-z0-9_-]+))$/, (req, res) => 
 
     const pct = Math.max(0, (remainDays / totalCycleDays) * 100);
     const barPct = Math.min(100, pct);
+    const barWidth = roundNum(10.2 * barPct);
+    const barEnd = roundNum(90 + barWidth);
     const rightX = showPremium ? 833 : 650;
     let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1150" height="580" viewBox="25 25 1150 580" style="margin: auto; position: absolute; top: 0; left: 0; right: 0; bottom: 0;">
 <defs>
@@ -638,15 +641,15 @@ ${rc !== tc && er !== null ? `<text x="${rightX}" y="270" font-size="14" opacity
 <text x="90" y="525" font-size="16" opacity="0.6">剩余比例</text>
 <text x="1110" y="525" font-size="16" font-weight="700" fill="url(#g)" text-anchor="end" dominant-baseline="central">${pct.toFixed(3)}%</text>
 <rect x="90" y="545" width="1020" height="8" rx="4" fill="#202026"/>
-<rect x="90" y="545" width="${10.2 * barPct}" height="8" rx="4" fill="url(#g)">
-<animate attributeName="width" from="0" to="${10.2 * barPct}" dur="1.2s" fill="freeze" calcMode="spline" keyTimes="0; 1" keySplines="0.16 1 0.3 1"/>
+<rect x="90" y="545" width="${barWidth}" height="8" rx="4" fill="url(#g)">
+<animate attributeName="width" from="0" to="${barWidth}" dur="1.2s" fill="freeze" calcMode="spline" keyTimes="0; 1" keySplines="0.16 1 0.3 1"/>
 </rect>
 <clipPath id="barClip">
-<rect x="90" y="545" width="${10.2 * barPct}" height="8" rx="4"/>
+<rect x="90" y="545" width="${barWidth}" height="8" rx="4"/>
 </clipPath>
 <g clip-path="url(#barClip)">
 <rect x="-110" y="545" width="200" height="8" fill="url(#shimmer)">
-<animate attributeName="x" from="-110" to="${90 + 10.2 * barPct}" dur="3.5s" begin="1.5s" repeatCount="indefinite"/>
+<animate attributeName="x" from="-110" to="${barEnd}" dur="3.5s" begin="1.5s" repeatCount="indefinite"/>
 </rect>
 </g>
 </g>
