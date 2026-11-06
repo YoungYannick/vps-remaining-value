@@ -11,7 +11,6 @@
 }
 body {
     margin: 0;
-    padding: 0;
     background: var(--bg);
     background-image: radial-gradient(circle at 50% 0%, #1a1a24 0%, var(--bg) 60%);
     background-repeat: no-repeat;
@@ -26,10 +25,6 @@ body {
     overflow-x: hidden;
 }
 ::selection {
-    background: var(--gold);
-    color: #000;
-}
-::-moz-selection {
     background: var(--gold);
     color: #000;
 }
@@ -211,9 +206,6 @@ html {
     color: var(--text);
     text-align: left;
 }
-.md-content:empty::after {
-    color: var(--text-muted);
-}
 .md-content h1 {
     margin: 4px 0 10px;
     font-size: 17px;
@@ -268,7 +260,7 @@ html {
 }
 .md-content p {
     margin: 10px 0 4px;
-    text-align: center;
+    text-align: left;
 }
 .md-content a {
     color: var(--gold);
@@ -276,14 +268,6 @@ html {
 }
 .md-content a:hover {
     color: #fdf0ba;
-}
-.md-content p {
-    margin: 10px 0 4px;
-    text-align: left;
-}
-.md-content a:hover {
-    color: #fdf0ba;
-    border-bottom-color: var(--gold);
 }
 .placeholder-msg {
     color: var(--text-muted);
@@ -570,12 +554,8 @@ button.alt-btn:hover {
     z-index: 0;
     left: 4px;
 }
-.capsule-switch.is-real .capsule-bg {
-    left: 50%;
-}
-.capsule-switch.is-exact .capsule-bg {
-    left: 50%;
-}
+.capsule-switch.is-real .capsule-bg,
+.capsule-switch.is-exact .capsule-bg,
 .capsule-switch.is-buyer .capsule-bg {
     left: 50%;
 }
