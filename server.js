@@ -541,6 +541,20 @@ app.get(/^\/(?:svg2\/([A-Za-z0-9_-]+)|svg|svg([A-Za-z0-9_-]+))$/, (req, res) => 
     const barWidth = roundNum(10.2 * barPct);
     const barEnd = roundNum(90 + barWidth);
     const rightX = showPremium ? 833 : 650;
+    const premiumColor = premiumAmount > 0 ? '#ff5a5a' : '#4ade80';
+    const premiumSign = premiumAmount > 0 ? '⤴ ' : (premiumAmount < 0 ? '⤵ ' : '');
+    const premiumLabel = premiumAmount >= 0 ? '溢价' : '折价';
+    const y1From = premiumAmount > 0 ? '100%' : '-100%';
+    const y1To = premiumAmount > 0 ? '-100%' : '100%';
+    const y2From = premiumAmount > 0 ? '200%' : '0%';
+    const y2To = premiumAmount > 0 ? '0%' : '200%';
+    const symWaveDef = showPremium ? `<linearGradient id="symWave" x1="0%" y1="0%" x2="0%" y2="100%">
+<stop offset="0%" stop-color="${premiumColor}" stop-opacity="0.3"/>
+<stop offset="50%" stop-color="${premiumColor}" stop-opacity="1"/>
+<stop offset="100%" stop-color="${premiumColor}" stop-opacity="0.3"/>
+<animate attributeName="y1" from="${y1From}" to="${y1To}" dur="2.5s" repeatCount="indefinite"/>
+<animate attributeName="y2" from="${y2From}" to="${y2To}" dur="2.5s" repeatCount="indefinite"/>
+</linearGradient>` : '';
     let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1150" height="580" viewBox="25 25 1150 580" style="margin: auto; position: absolute; top: 0; left: 0; right: 0; bottom: 0;">
 <defs>
 <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -563,23 +577,17 @@ app.get(/^\/(?:svg2\/([A-Za-z0-9_-]+)|svg|svg([A-Za-z0-9_-]+))$/, (req, res) => 
 <animate attributeName="x1" values="-100%; 200%; 200%" dur="5s" repeatCount="indefinite"/>
 <animate attributeName="x2" values="0%; 300%; 300%" dur="5s" repeatCount="indefinite"/>
 </linearGradient>
-<filter id="glow">
-<feGaussianBlur stdDeviation="3" result="blur"/>
-<feMerge>
-<feMergeNode in="blur"/>
-<feMergeNode in="SourceGraphic"/>
-</feMerge>
-</filter>
+${symWaveDef}
 <clipPath id="roundCorner">
 <rect x="25" y="25" width="1150" height="580" rx="24" ry="24"/>
 </clipPath>
 <style>
 .f { font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-.anim { animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-.d1 { animation-delay: 0.1s; opacity: 0; }
-.d2 { animation-delay: 0.2s; opacity: 0; }
-.d3 { animation-delay: 0.3s; opacity: 0; }
+.anim { animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.d1 { animation-delay: 0.1s; }
+.d2 { animation-delay: 0.2s; }
+.d3 { animation-delay: 0.3s; }
 </style>
 </defs>
 <g clip-path="url(#roundCorner)">
@@ -589,10 +597,10 @@ app.get(/^\/(?:svg2\/([A-Za-z0-9_-]+)|svg|svg([A-Za-z0-9_-]+))$/, (req, res) => 
 <image x="90" y="72" width="48" height="48" href="${logoBase64}"/>
 <text x="152" y="110" font-size="28" font-weight="700" fill="url(#textShine)" letter-spacing="1">${showPremium ? 'VPS Trade Value' : 'VPS Remaining Value'}</text>
 <g opacity="0.4">
-<path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" transform="translate(854, 68)" fill="#FFFFFF"/>
-<text x="1110" y="81" font-size="14" fill="#FFFFFF" text-anchor="end">YoungYannick/vps-remaining-value</text>
+<path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" transform="translate(854, 68)"/>
+<text x="1110" y="81" font-size="14" text-anchor="end">YoungYannick/vps-remaining-value</text>
 </g>
- <text x="1110" y="110" font-size="15" opacity="0.4" text-anchor="end">${er !== null ? `汇率: 1 ${rc} ${rc === tc ? '=' : '≈'} ${formatRate(er)} ${tc}` : '汇率: 不可用'}${pushTc > 0 && pc !== tc && pc !== rc ? ` · 1 ${pc} ≈ ${formatRate(per)} ${tc}` : ''} | ${showPremium ? '交易日期' : '计算日期'}: ${td}</text>
+<text x="1110" y="110" font-size="15" opacity="0.4" text-anchor="end">${er !== null ? `汇率: 1 ${rc} ${rc === tc ? '=' : '≈'} ${formatRate(er)} ${tc}` : '汇率: 不可用'}${pushTc > 0 && pc !== tc && pc !== rc ? ` · 1 ${pc} ≈ ${formatRate(per)} ${tc}` : ''} | ${showPremium ? '交易日期' : '计算日期'}: ${td}</text>
 <line x1="50" y1="145" x2="1150" y2="145" stroke="#FFFFFF" opacity="0.08"/>
 <g class="anim d1">
 <text x="90" y="280" font-size="16" fill="#FFFFFF" opacity="0.6">剩余价值 (${tc})</text>
@@ -600,31 +608,15 @@ app.get(/^\/(?:svg2\/([A-Za-z0-9_-]+)|svg|svg([A-Za-z0-9_-]+))$/, (req, res) => 
 </g>`;
 
     if (showPremium) {
-        const color = premiumAmount > 0 ? '#ff5a5a' : '#4ade80';
-        const sign = premiumAmount > 0 ? '⤴ ' : (premiumAmount < 0 ? '⤵ ' : '');
-        const premiumLabel = premiumAmount >= 0 ? '溢价' : '折价';
-        const y1From = premiumAmount > 0 ? '100%' : '-100%';
-        const y1To = premiumAmount > 0 ? '-100%' : '100%';
-        const y2From = premiumAmount > 0 ? '200%' : '0%';
-        const y2To = premiumAmount > 0 ? '0%' : '200%';
-        svg += `<defs>
-<linearGradient id="symWave" x1="0%" y1="0%" x2="0%" y2="100%">
-<stop offset="0%" stop-color="${color}" stop-opacity="0.3"/>
-<stop offset="50%" stop-color="${color}" stop-opacity="1"/>
-<stop offset="100%" stop-color="${color}" stop-opacity="0.3"/>
-<animate attributeName="y1" from="${y1From}" to="${y1To}" dur="2.5s" repeatCount="indefinite"/>
-<animate attributeName="y2" from="${y2From}" to="${y2To}" dur="2.5s" repeatCount="indefinite"/>
-</linearGradient>
-</defs>
-<line x1="416" y1="190" x2="416" y2="435" stroke="#FFFFFF" opacity="0.08"/>
- <g class="anim d2">
+        svg += `<line x1="416" y1="190" x2="416" y2="465" stroke="#FFFFFF" opacity="0.08"/>
+<g class="anim d2">
 <text x="456" y="210" font-size="16" opacity="0.6">交易金额 (${tc})${pushTc > 0 && ps === 'buyer' ? ` <tspan fill="#F5C900" font-weight="700">含PUSH费</tspan>` : ''}</text>
 <text x="456" y="280" font-size="60" font-weight="700" fill="url(#g)">${taVal.toFixed(3)}</text>
 <text x="456" y="310" font-size="14" opacity="0.4">${premiumLabel}金额 (${tc})</text>
-<text x="456" y="340" font-size="22" font-weight="600" fill="${color}" dominant-baseline="central"><tspan fill="url(#symWave)">${sign}</tspan> ${Math.abs(premiumAmount).toFixed(3)}</text>
+<text x="456" y="340" font-size="22" font-weight="600" fill="${premiumColor}" dominant-baseline="central"><tspan fill="url(#symWave)">${premiumSign}</tspan> ${Math.abs(premiumAmount).toFixed(3)}</text>
 <text x="456" y="390" font-size="14" opacity="0.4">${premiumLabel}幅度</text>
-<text x="456" y="420" font-size="22" font-weight="600" fill="${color}" dominant-baseline="central"><tspan fill="url(#symWave)">${sign}</tspan> ${Math.abs(premiumRate).toFixed(3)}%</text>
-${pushTc > 0 ? `<text x="456" y="452" font-size="13" opacity="0.6">PUSH费 ${push} ${pc}${pc !== tc ? ` ≈ ${pushTc.toFixed(3)} ${tc}` : ''} · <tspan fill="#F5C900" font-weight="700">${ps === 'buyer' ? '买家承担' : '卖家承担'}</tspan></text>` : ''}
+<text x="456" y="420" font-size="22" font-weight="600" fill="${premiumColor}" dominant-baseline="central"><tspan fill="url(#symWave)">${premiumSign}</tspan> ${Math.abs(premiumRate).toFixed(3)}%</text>
+${pushTc > 0 ? `<text x="456" y="452" font-size="13" opacity="0.6">PUSH费 ${push.toFixed(3)} ${pc}${pc !== tc ? ` ≈ ${pushTc.toFixed(3)} ${tc}` : ''} · <tspan fill="#F5C900" font-weight="700">${ps === 'buyer' ? '买家承担' : '卖家承担'}</tspan></text>` : ''}
 </g>`;
     }
     svg += `<line x1="${rightX - 40}" y1="190" x2="${rightX - 40}" y2="435" stroke="#FFFFFF" opacity="0.08"/>
@@ -653,7 +645,8 @@ ${rc !== tc && er !== null ? `<text x="${rightX}" y="270" font-size="14" opacity
 </rect>
 </g>
 </g>
-</g> </svg>`;
+</g>
+</svg>`;
     res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache');
     res.send(svg);
