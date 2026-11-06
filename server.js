@@ -548,7 +548,7 @@ app.get(/^\/(?:svg2\/([A-Za-z0-9_-]+)|svg|svg([A-Za-z0-9_-]+))$/, (req, res) => 
 <stop offset="100%" stop-color="#0a0a0d"/>
 </linearGradient>
 <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
-<stop offset="0%" stop-color="#FFD700"/>
+<stop offset="0%" stop-color="#F5C900"/>
 <stop offset="100%" stop-color="#D4AF37"/>
 </linearGradient>
 <linearGradient id="shimmer" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -618,13 +618,13 @@ app.get(/^\/(?:svg2\/([A-Za-z0-9_-]+)|svg|svg([A-Za-z0-9_-]+))$/, (req, res) => 
 </defs>
 <line x1="416" y1="190" x2="416" y2="435" stroke="#FFFFFF" opacity="0.08"/>
  <g class="anim d2">
-<text x="456" y="210" font-size="16" opacity="0.6">交易金额 (${tc})${pushTc > 0 && ps === 'buyer' ? ` <tspan fill="#FFD700" font-weight="700">含PUSH费</tspan>` : ''}</text>
+<text x="456" y="210" font-size="16" opacity="0.6">交易金额 (${tc})${pushTc > 0 && ps === 'buyer' ? ` <tspan fill="#F5C900" font-weight="700">含PUSH费</tspan>` : ''}</text>
 <text x="456" y="280" font-size="60" font-weight="700" fill="url(#g)">${taVal.toFixed(3)}</text>
 <text x="456" y="310" font-size="14" opacity="0.4">${premiumLabel}金额 (${tc})</text>
 <text x="456" y="340" font-size="22" font-weight="600" fill="${color}" dominant-baseline="central"><tspan fill="url(#symWave)">${sign}</tspan> ${Math.abs(premiumAmount).toFixed(3)}</text>
 <text x="456" y="390" font-size="14" opacity="0.4">${premiumLabel}幅度</text>
 <text x="456" y="420" font-size="22" font-weight="600" fill="${color}" dominant-baseline="central"><tspan fill="url(#symWave)">${sign}</tspan> ${Math.abs(premiumRate).toFixed(3)}%</text>
-${pushTc > 0 ? `<text x="456" y="452" font-size="13" opacity="0.6">PUSH费 ${push} ${pc}${pc !== tc ? ` ≈ ${pushTc.toFixed(3)} ${tc}` : ''} · <tspan fill="#FFD700" font-weight="700">${ps === 'buyer' ? '买家承担' : '卖家承担'}</tspan></text>` : ''}
+${pushTc > 0 ? `<text x="456" y="452" font-size="13" opacity="0.6">PUSH费 ${push} ${pc}${pc !== tc ? ` ≈ ${pushTc.toFixed(3)} ${tc}` : ''} · <tspan fill="#F5C900" font-weight="700">${ps === 'buyer' ? '买家承担' : '卖家承担'}</tspan></text>` : ''}
 </g>`;
     }
     svg += `<line x1="${rightX - 40}" y1="190" x2="${rightX - 40}" y2="435" stroke="#FFFFFF" opacity="0.08"/>
