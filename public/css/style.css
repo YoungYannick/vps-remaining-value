@@ -9,6 +9,12 @@
     --gold-glow: rgba(235, 210, 136, 0.15);
     --font: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
 }
+*,
+*::before,
+*::after,
+::-webkit-scrollbar-thumb {
+    corner-shape: squircle;
+}
 body {
     margin: 0;
     background: var(--bg);
