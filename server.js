@@ -504,6 +504,7 @@ app.get(/^\/(?:svg2\/([A-Za-z0-9_-]+)|svg|svg([A-Za-z0-9_-]+))$/, (req, res) => 
     const remainingValueBase = (ra / totalCycleDays) * remainDays;
     const remainingValueTarget = er !== null ? remainingValueBase * er : null;
     let taVal = ta;
+    if (taVal !== null && pushTc > 0 && ps === 'buyer') taVal += pushTc;
     if (taVal === null && remainingValueTarget !== null) {
         const paParam = (params.pa !== undefined && params.pa !== '') ? parseFloat(params.pa) : NaN;
         if (!isNaN(paParam)) {

@@ -22,6 +22,10 @@ let exchangeRates = {};
 let currentRate = null;
 let rateLocked = false;
 let lockedPair = '';
+let txBaseValue = null;
+let txBaseCurrency = null;
+let txBaseRate = null;
+let txBaseField = null;
 let lastTxField = 'ta';
 let urlPushRate = null;
 let pushRateLocked = false;
@@ -52,11 +56,17 @@ function updateManualMark() {
     });
 }
 function updateActualMarks() {
+    const taMark = document.getElementById('actual-ta');
     const paMark = document.getElementById('actual-pa');
     const drMark = document.getElementById('actual-dr');
+    let taText = '';
     let paText = '';
     let drText = '';
     const pushTc = getPushAmountTc();
+    if (pushTc > 0 && els.ps.value === 'buyer' && lastTxField === 'ta' && els.ta.value !== '') {
+        const taVal = parseFloat(els.ta.value);
+        if (!isNaN(taVal)) taText = `实际 ${(taVal + pushTc).toFixed(3)}`;
+    }
     if (pushTc > 0 && els.ps.value === 'seller' && (lastTxField === 'pa' || lastTxField === 'dr')) {
         const rv = calculateRV();
         if (rv > 0) {
@@ -66,6 +76,7 @@ function updateActualMarks() {
             if (!isNaN(drVal)) drText = `实际 ${(drVal - pushTc / rv).toFixed(3)}`;
         }
     }
+    taMark.innerText = taText;
     paMark.innerText = paText;
     drMark.innerText = drText;
 }
@@ -92,7 +103,8 @@ function syncTransactionFields() {
     } else if (lastTxField === 'ta' && els.ta.value !== '') {
         const taVal = parseFloat(els.ta.value);
         if (isNaN(taVal)) return;
-        const baseTa = pushTc > 0 ? taVal - pushTc : taVal;
+        const effectivePush = isFinite(pushTc) ? pushTc : 0;
+        const baseTa = isBuyerPush ? taVal : taVal - effectivePush;
         els.dr.value = (baseTa / rv).toFixed(3);
         els.pa.value = (baseTa - rv).toFixed(3);
     }
@@ -479,10 +491,12 @@ function buildMarkdownText() {
     const rightRows = [];
     const hasTrade = hasTa && rv !== null;
     if (hasTrade) {
-        const premium = taVal - pushTc - rv;
+        const effectivePush = isFinite(pushTc) ? Math.max(0, pushTc) : 0;
+        const actualTa = taVal + (lastTxField === 'ta' && isBuyer ? effectivePush : 0);
+        const premium = actualTa - effectivePush - rv;
         const sign = premium >= 0 ? '+' : '-';
         rightRows.push(['交易日期', `${els.td.value}`]);
-        rightRows.push(['交易金额', `**${taVal.toFixed(3)} ${tc}**${pushTc > 0 && isBuyer ? '（含PUSH费）' : ''}`]);
+        rightRows.push(['交易金额', `**${actualTa.toFixed(3)} ${tc}**${effectivePush > 0 && isBuyer ? '（含PUSH费）' : ''}`]);
         rightRows.push(['溢价金额', `${sign}${Math.abs(premium).toFixed(3)} ${tc}`]);
         rightRows.push(['溢价幅度', `${sign}${Math.abs((premium / rv) * 100).toFixed(3)}%`]);
     } else {
@@ -580,6 +594,10 @@ function calculateRV() {
 }
 els.dr.addEventListener('input', (e) => {
     lastTxField = 'dr';
+    txBaseField = 'dr';
+    txBaseValue = null;
+    txBaseCurrency = null;
+    txBaseRate = null;
     if (e.target.value === '') {
         els.ta.value = '';
         els.pa.value = '';
@@ -589,18 +607,30 @@ els.dr.addEventListener('input', (e) => {
 });
 els.pa.addEventListener('input', (e) => {
     lastTxField = 'pa';
+    txBaseField = 'pa';
     if (e.target.value === '') {
         els.ta.value = '';
         els.dr.value = '';
+        txBaseValue = null;
+    } else {
+        txBaseValue = parseFloat(e.target.value);
+        txBaseCurrency = els.tc.value;
+        txBaseRate = parseFloat(currentRate);
     }
     updateManualMark();
     update();
 });
 els.ta.addEventListener('input', (e) => {
     lastTxField = 'ta';
+    txBaseField = 'ta';
     if (e.target.value === '') {
         els.dr.value = '';
         els.pa.value = '';
+        txBaseValue = null;
+    } else {
+        txBaseValue = parseFloat(e.target.value);
+        txBaseCurrency = els.tc.value;
+        txBaseRate = parseFloat(currentRate);
     }
     updateManualMark();
     update();
@@ -608,8 +638,37 @@ els.ta.addEventListener('input', (e) => {
 Object.values(els).forEach(el => {
     el.addEventListener('input', update);
 });
+function getRateForTc(tc) {
+    if (tc === els.rc.value) return 1;
+    if (exchangeRates[els.rc.value] && exchangeRates[tc]) return exchangeRates[tc] / exchangeRates[els.rc.value];
+    return null;
+}
+function convertTcAmounts() {
+    if (txBaseField !== 'ta' && txBaseField !== 'pa') return;
+    if (txBaseValue === null || !isFinite(txBaseValue)) return;
+    const newTc = els.tc.value;
+    if (!newTc) return;
+    if (txBaseCurrency === newTc) {
+        const restored = txBaseValue.toFixed(3);
+        if (txBaseField === 'ta') els.ta.value = restored;
+        else els.pa.value = restored;
+        return;
+    }
+    let baseRate = getRateForTc(txBaseCurrency);
+    if (!isFinite(baseRate) || baseRate <= 0) baseRate = parseFloat(txBaseRate);
+    const newRate = getRateForTc(newTc);
+    if (!isFinite(baseRate) || baseRate <= 0 || !isFinite(newRate) || newRate <= 0) return;
+    const factor = newRate / baseRate;
+    if (!isFinite(factor) || factor <= 0) return;
+    const converted = (txBaseValue * factor).toFixed(3);
+    if (txBaseField === 'ta') els.ta.value = converted;
+    else els.pa.value = converted;
+}
 els.rc.addEventListener('change', updateRateField);
-els.tc.addEventListener('change', updateRateField);
+els.tc.addEventListener('change', () => {
+    convertTcAmounts();
+    updateRateField();
+});
 els.pc.addEventListener('change', update);
 function tempText(btn, text) {
     const og = btn.innerText;
@@ -708,6 +767,15 @@ if (urlParams.has('er')) {
 } else {
     fetchRates();
 }
+if (lastTxField === 'ta' || lastTxField === 'pa') {
+    const baseVal = parseFloat(els[lastTxField].value);
+    if (isFinite(baseVal)) {
+        txBaseField = lastTxField;
+        txBaseValue = baseVal;
+        txBaseCurrency = els.tc.value;
+        txBaseRate = parseFloat(currentRate);
+    }
+}
 document.getElementById('share-tip').style.display = (rateLocked || pushRateLocked) ? 'block' : 'none';
 if (urlParams.has('ra') || urlParams.has('er')) {
     setTimeout(() => {
@@ -761,6 +829,10 @@ document.getElementById('reset-btn').addEventListener('click', (e) => {
     initPsCapsule();
     document.querySelectorAll('.input-group.is-manual').forEach(g => g.classList.remove('is-manual'));
     lastTxField = 'ta';
+    txBaseField = 'ta';
+    txBaseValue = null;
+    txBaseCurrency = null;
+    txBaseRate = null;
     urlPushRate = null;
     window.history.replaceState({}, '', window.location.pathname);
     fetchRates();
