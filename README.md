@@ -194,3 +194,9 @@ docker run -d \
   --name vps-remaining-value \
   ghcr.io/youngyannick/vps-remaining-value:latest
 ```
+
+---
+
+# 许可
+
+本项目采用 [MIT License](./LICENSE) 授权
