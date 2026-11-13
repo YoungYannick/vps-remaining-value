@@ -37,6 +37,8 @@ location = /error.svg {
     internal;
     root /data/nginx/custom/pages;
     default_type image/svg+xml;
+
+    add_header Cache-Control "no-store, no-cache, must-revalidate" always;
 }
 ```
 
