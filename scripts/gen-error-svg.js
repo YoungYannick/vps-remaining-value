@@ -49,7 +49,12 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1150" height="580" v
 <rect x="50" y="50" width="1100" height="530" rx="20" fill="none" stroke="url(#g)" stroke-width="1.5" opacity="0.15"/>
 <g class="f" fill="#FFFFFF">
 <image x="90" y="72" width="48" height="48" href="${logoBase64}"/>
-<text x="152" y="110" font-size="28" font-weight="700" fill="url(#textShine)" letter-spacing="1">VPS Remaining Value</text>
+<text x="152" y="110" font-size="28" font-weight="700" fill="url(#textShine)" letter-spacing="1">VPS Remaining Value
+<animate attributeName="opacity" values="1;1;0;0;1" keyTimes="0;0.46;0.5;0.96;1" dur="20s" calcMode="spline" keySplines="0.42 0 0.58 1;0.42 0 0.58 1;0.42 0 0.58 1;0.42 0 0.58 1" repeatCount="indefinite"/>
+</text>
+<text x="152" y="110" font-size="28" font-weight="700" fill="url(#textShine)" letter-spacing="1" opacity="0">VPS Trade Value
+<animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.46;0.5;0.96;1" dur="20s" calcMode="spline" keySplines="0.42 0 0.58 1;0.42 0 0.58 1;0.42 0 0.58 1;0.42 0 0.58 1" repeatCount="indefinite"/>
+</text>
 <g opacity="0.4">
 <path d="${githubPath}" transform="translate(854, 68)"/>
 <text x="1110" y="81" font-size="14" text-anchor="end">YoungYannick/vps-remaining-value</text>
