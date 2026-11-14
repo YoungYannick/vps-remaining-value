@@ -81,6 +81,6 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1150" height="580" v
 </g>
 </svg>`;
 
-const outFile = path.join(__dirname, 'error.svg');
+const outFile = path.join(__dirname, 'maintenance-vps.svg');
 fs.writeFileSync(outFile, svg);
 console.log(`written ${path.relative(path.join(__dirname, '..'), outFile)} (${Buffer.byteLength(svg)} bytes)`);
