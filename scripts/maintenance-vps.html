@@ -312,6 +312,15 @@
         }
       };
 
+      const isChinese = (value) => String(value || "").toLowerCase().startsWith("zh");
+
+      const detectBrowserLang = () => {
+        const languages = Array.isArray(navigator.languages) && navigator.languages.length
+          ? navigator.languages
+          : [navigator.language];
+        return languages.some(isChinese) ? "zh-CN" : null;
+      };
+
       const applyLang = (lang) => {
         const next = supportedLangs.has(lang) ? lang : defaultLang;
         document.documentElement.lang = next;
@@ -328,7 +337,7 @@
         });
       });
 
-      applyLang(readLang() || defaultLang);
+      applyLang(readLang() || detectBrowserLang() || defaultLang);
     })();
   </script>
 
@@ -340,6 +349,7 @@
 
       let deadline = 0;
       let lastLeft = -1;
+      let reloaded = false;
       let timer = null;
 
       const paint = (value) => {
@@ -348,7 +358,7 @@
         });
       };
 
-      const reload = () => {
+      const forceReload = () => {
         if (window.location.protocol === "file:") {
           window.location.reload();
           return;
@@ -363,25 +373,32 @@
       };
 
       const tick = () => {
+        if (reloaded) return;
         const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
         if (left !== lastLeft) {
           lastLeft = left;
           paint(left);
         }
         if (left <= 0) {
+          reloaded = true;
           if (timer) {
             clearInterval(timer);
             timer = null;
           }
-          reload();
+          forceReload();
         }
       };
 
       const start = () => {
         deadline = Date.now() + refreshSeconds * 1000;
         lastLeft = -1;
+        reloaded = false;
+        if (timer) {
+          clearInterval(timer);
+          timer = null;
+        }
         paint(refreshSeconds);
-        if (timer) clearInterval(timer);
+        tick();
         timer = setInterval(tick, 250);
       };
 
