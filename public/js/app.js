@@ -527,7 +527,7 @@ function buildMarkdownText() {
         lines.push(`| 汇率 | ${rateLine} | | |`);
     }
     const b64 = generateBase64UrlV2(getUrlParamsObj());
-    lines.push('', `[查看完整信息](${window.location.origin}/v2/${b64})`);
+    lines.push('', '**仅供参考，请以实际为准**', `[查看完整信息](${window.location.origin}/v2/${b64})`);
     return lines.join('\n');
 }
 let debounceTimer = null;

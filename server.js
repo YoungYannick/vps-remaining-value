@@ -645,6 +645,7 @@ ${rc !== tc && er !== null ? `<text x="${rightX}" y="270" font-size="14" opacity
 <animate attributeName="x" from="-110" to="${barEnd}" dur="3.5s" begin="1.5s" repeatCount="indefinite"/>
 </rect>
 </g>
+<text x="600" y="570" font-size="11" letter-spacing="0.5" fill="#ebd288" opacity="0.75" text-anchor="middle">本工具仅供参考，请以实际为准</text>
 </g>
 </g>
 </svg>`;
