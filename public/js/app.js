@@ -498,7 +498,6 @@ function buildMarkdownText() {
         rightRows.push(['交易日期', `${els.td.value}`]);
         rightRows.push(['交易金额', `**${actualTa.toFixed(3)} ${tc}**${effectivePush > 0 && isBuyer ? '（含PUSH费）' : ''}`]);
         rightRows.push(['溢价金额', `${sign}${Math.abs(premium).toFixed(3)} ${tc}`]);
-        rightRows.push(['溢价幅度', `${sign}${Math.abs((premium / rv) * 100).toFixed(3)}%`]);
     } else {
         leftRows.push(['计算日期', `${els.td.value}`]);
     }
