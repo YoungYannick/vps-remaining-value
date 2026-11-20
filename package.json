@@ -1,22 +1,26 @@
 {
   "name": "vps-remaining-value",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "bin": "server.js",
   "scripts": {
     "start": "node server.js",
-    "build": "npx @yao-pkg/pkg . --targets node24-win-x64 --output dist/VPSRemainingValue.exe"
+    "minify:public": "node scripts/build/minify-public.js",
+    "build": "npm run minify:public && npx @yao-pkg/pkg . --targets node24-win-x64 --output dist/VPSRemainingValue.exe"
   },
   "dependencies": {
-    "express": "^4.18.2",
+    "cookie-parser": "^1.4.6",
     "dotenv": "^16.4.5",
-    "cookie-parser": "^1.4.6"
+    "express": "^4.18.2"
   },
   "devDependencies": {
-    "@yao-pkg/pkg": "^6.20.0"
+    "@yao-pkg/pkg": "^6.20.0",
+    "clean-css": "^5.3.3",
+    "html-minifier-terser": "^7.2.0",
+    "terser": "^5.51.3"
   },
   "pkg": {
     "assets": [
-      "public/**/*"
+      "build/public/**/*"
     ]
   }
 }

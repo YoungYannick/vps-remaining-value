@@ -5,6 +5,11 @@ const crypto = require('crypto');
 const cookieParser = require('cookie-parser');
 require('dotenv').config();
 
+const minifiedPublicDir = path.join(__dirname, 'build', 'public');
+const publicDir = process.pkg && fs.existsSync(minifiedPublicDir)
+    ? minifiedPublicDir
+    : path.join(__dirname, 'public');
+
 const TIMEZONE = process.env.TIMEZONE || 'Asia/Shanghai';
 let logFmt;
 try {
@@ -27,7 +32,7 @@ if (!SECRET_KEY) {
 
 let logoBase64 = '';
 try {
-    let logoStr = fs.readFileSync(path.join(__dirname, 'public', 'images', 'logo.svg'), 'utf-8');
+    let logoStr = fs.readFileSync(path.join(publicDir, 'images', 'logo.svg'), 'utf-8');
     logoStr = logoStr.replace(/#000000|#000\b|black/gi, '#D4AF37');
     logoBase64 = `data:image/svg+xml;base64,${Buffer.from(logoStr).toString('base64')}`;
 } catch (e) {
@@ -380,7 +385,7 @@ function decodeBase64ParamsV2(base64UrlStr) {
         return {};
     }
 }
-const indexTemplate = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf-8');
+const indexTemplate = fs.readFileSync(path.join(publicDir, 'index.html'), 'utf-8');
 function getSiteUrl(req) {
     const host = req.get('host') || '';
     if (!/^[a-zA-Z0-9.\-:]+$/.test(host)) return '';
@@ -397,7 +402,7 @@ app.get('/sitemap.xml', (req, res) => {
     res.type('application/xml');
     res.send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url>\n    <loc>${getSiteUrl(req)}/</loc>\n    <changefreq>monthly</changefreq>\n    <priority>1.0</priority>\n  </url>\n</urlset>`);
 });
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(publicDir));
 app.get('/api/rates', async (req, res) => {
     const host = req.get('host');
     const refererValid = isValidHost(req.headers.referer, host);
@@ -663,7 +668,7 @@ app.get(/^\/v2\/([A-Za-z0-9_-]+)$/, (req, res) => {
     res.redirect(`/?${new URLSearchParams(params).toString()}`);
 });
 app.get('/favicon.ico', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'images', 'favicon.ico'));
+    res.sendFile(path.join(publicDir, 'images', 'favicon.ico'));
 });
 app.use((req, res) => {
     res.status(404).end();

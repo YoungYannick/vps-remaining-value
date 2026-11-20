@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-let logoSvg = fs.readFileSync(path.join(__dirname, '..', 'public', 'images', 'logo.svg'), 'utf-8');
+let logoSvg = fs.readFileSync(path.join(__dirname, '..', '..', 'public', 'images', 'logo.svg'), 'utf-8');
 logoSvg = logoSvg.replace(/#000000|#000\b|black/gi, '#D4AF37');
 const logoBase64 = `data:image/svg+xml;base64,${Buffer.from(logoSvg).toString('base64')}`;
 
